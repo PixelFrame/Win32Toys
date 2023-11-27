@@ -17,7 +17,7 @@
 #pragma comment(lib, "ntdll.lib")
 
 static const WCHAR* Usage =
-L"Initiate DNS update requests via Windows DNS API"
+L"Initiate DNS update requests via Windows DNS API\n"
 L"DnsRegistrator.exe [-u <UserName> -p <Password> [-d <Domain>]] [-t (A|AAAA|CNAME)] -n <RecordFQDN> -v <RecordValue> [-l <TTL>] [-s <ServerAddr>]";
 
 void PrintUsage()
@@ -65,15 +65,15 @@ int __cdecl wmain(int argc, wchar_t** argv)
         }
         else if (_wcsicmp(argv[i], L"-t") == 0)
         {
-            if (_wcsicmp(argv[i + 1], L"A"))
+            if (_wcsicmp(argv[i + 1], L"A") == 0)
             {
                 wRecordType = DNS_TYPE_A;
             }
-            else if (_wcsicmp(argv[i + 1], L"AAAA"))
+            else if (_wcsicmp(argv[i + 1], L"AAAA") == 0)
             {
                 wRecordType = DNS_TYPE_AAAA;
             }
-            else if (_wcsicmp(argv[i + 1], L"CNAME"))
+            else if (_wcsicmp(argv[i + 1], L"CNAME") == 0)
             {
                 wRecordType = DNS_TYPE_CNAME;
             }
