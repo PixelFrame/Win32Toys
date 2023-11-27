@@ -17,17 +17,37 @@
 #pragma comment(lib, "ntdll.lib")
 
 static const WCHAR* Usage =
-L"Initiate DNS update requests via Windows DNS API\n"
-L"DnsRegistrator.exe [-u <UserName> -p <Password> [-d <Domain>]] [-t (A|AAAA|CNAME)] -n <RecordFQDN> -v <RecordValue> [-l <TTL>] [-s <ServerAddr>]";
+L"DnsRegistrator.exe [-u <UserName> -p <Password> [-d <Domain>]] [-t (A|AAAA|CNAME)] -n <RecordFQDN> -v <RecordValue> [-l <TTL>] [-s <ServerAddr>] -r\n"
+L"DnsRegistrator.exe -h\n";
 
-void PrintUsage()
+static const WCHAR* UsageVerbose =
+L"Initiate DNS update requests via Windows DNS API\n"
+L"DnsRegistrator.exe [-u <UserName> -p <Password> [-d <Domain>]] [-t (A|AAAA|CNAME)] -n <RecordFQDN> -v <RecordValue> [-l <TTL>] [-s <ServerAddr>] -r\n"
+L"DnsRegistrator.exe -h\n"
+L"  -u      User name to perform the registration\n"
+L"  -p      Password of the user\n"
+L"  -d      Domain of the user\n"
+L"  -t      DNS type to be registered\n"
+L"  -n      DNS name to be registered\n"
+L"  -v      Value of the record\n"
+L"  -l      TTL of the record\n"
+L"  -s      DNS server address that SOA query will be sent to\n"
+L"  -r      Remove other existing records of the same name\n"
+L"  -h      Print this message\n"
+;
+
+void PrintUsage(int verbosity = 0)
 {
-    wprintf(Usage);
+    if (verbosity == 0)
+        wprintf(Usage);
+    else
+        wprintf(UsageVerbose);
 }
 
-void CleanUp(PDNS_RECORD pDnsRecord, PSEC_WINNT_AUTH_IDENTITY_W pCredentials, PIP4_ARRAY pSrvList)
+void CleanUp(PDNS_RECORD pAddDnsRecord, PDNS_RECORD pDeleteDnsRecord, PSEC_WINNT_AUTH_IDENTITY_W pCredentials, PIP4_ARRAY pSrvList)
 {
-    if (NULL != pDnsRecord) LocalFree(pDnsRecord);
+    if (NULL != pAddDnsRecord) LocalFree(pAddDnsRecord);
+    if (NULL != pDeleteDnsRecord) LocalFree(pDeleteDnsRecord);
     if (NULL != pSrvList) LocalFree(pSrvList);
     if (NULL != pCredentials) LocalFree(pCredentials);
 }
@@ -40,6 +60,7 @@ int __cdecl wmain(int argc, wchar_t** argv)
     PSEC_WINNT_AUTH_IDENTITY_W        pCredentials = NULL;
     HANDLE                            secHandle = NULL;
     PDNS_RECORD                       pAddDnsRecord = (PDNS_RECORD)LocalAlloc(LPTR, sizeof(DNS_RECORD));
+    PDNS_RECORD                       pDeleteDnsRecord = NULL;
     PIP4_ARRAY                        pSrvList = NULL;
     DNS_STATUS                        status;
     LPCWSTR                           terminator;
@@ -50,19 +71,29 @@ int __cdecl wmain(int argc, wchar_t** argv)
         return ERROR_NOT_ENOUGH_MEMORY;
     }
 
-    for (int i = 1; i < argc; i += 2)
+    int i = 1;
+    while (i < argc)
     {
+        if (_wcsicmp(argv[i], L"-h") == 0)
+        {
+            PrintUsage(1);
+            CleanUp(pAddDnsRecord, pDeleteDnsRecord, pCredentials, pSrvList);
+            return ERROR_SUCCESS;
+        }
         if (_wcsicmp(argv[i], L"-u") == 0)
         {
             wName = argv[i + 1];
+            i += 2;
         }
         else if (_wcsicmp(argv[i], L"-p") == 0)
         {
             wPassword = argv[i + 1];
+            i += 2;
         }
         else if (_wcsicmp(argv[i], L"-d") == 0)
         {
             wDomain = argv[i + 1];
+            i += 2;
         }
         else if (_wcsicmp(argv[i], L"-t") == 0)
         {
@@ -82,17 +113,20 @@ int __cdecl wmain(int argc, wchar_t** argv)
             {
                 wprintf(L"Bad DNS Type: %s\n\n", argv[i + 1]);
                 PrintUsage();
-                CleanUp(pAddDnsRecord, pCredentials, pSrvList);
+                CleanUp(pAddDnsRecord, pDeleteDnsRecord, pCredentials, pSrvList);
                 return ERROR_INVALID_PARAMETER;
             }
+            i += 2;
         }
         else if (_wcsicmp(argv[i], L"-n") == 0)
         {
             wFqdn = argv[i + 1];
+            i += 2;
         }
         else if (_wcsicmp(argv[i], L"-v") == 0)
         {
             wValue = argv[i + 1];
+            i += 2;
         }
         else if (_wcsicmp(argv[i], L"-l") == 0)
         {
@@ -102,9 +136,10 @@ int __cdecl wmain(int argc, wchar_t** argv)
             {
                 wprintf(L"Bad TTL value: %s\n\n", argv[i + 1]);
                 PrintUsage();
-                CleanUp(pAddDnsRecord, pCredentials, pSrvList);
+                CleanUp(pAddDnsRecord, pDeleteDnsRecord, pCredentials, pSrvList);
                 return ERROR_INVALID_PARAMETER;
             }
+            i += 2;
         }
         else if (_wcsicmp(argv[i], L"-s") == 0)
         {
@@ -113,7 +148,7 @@ int __cdecl wmain(int argc, wchar_t** argv)
             if (NULL == pSrvList)
             {
                 wprintf(L"Could not allocate memory!\n");
-                CleanUp(pAddDnsRecord, pCredentials, pSrvList);
+                CleanUp(pAddDnsRecord, pDeleteDnsRecord, pCredentials, pSrvList);
                 return ERROR_NOT_ENOUGH_MEMORY;
             }
             pSrvList->AddrCount = 1;
@@ -121,16 +156,28 @@ int __cdecl wmain(int argc, wchar_t** argv)
             {
                 wprintf(L"Invalid IPv4 address\n\n");
                 PrintUsage();
-                CleanUp(pAddDnsRecord, pCredentials, pSrvList);
+                CleanUp(pAddDnsRecord, pDeleteDnsRecord, pCredentials, pSrvList);
                 return ERROR_INVALID_PARAMETER;
             }
             pSrvList->AddrArray[0] = addr.S_un.S_addr;
+            i += 2;
+        }
+        else if (_wcsicmp(argv[i], L"-r") == 0)
+        {
+            pDeleteDnsRecord = (PDNS_RECORD)LocalAlloc(LPTR, sizeof(DNS_RECORD));
+            if (NULL == pDeleteDnsRecord)
+            {
+                wprintf(L"Couldn't allocate memory!\n");
+                CleanUp(pAddDnsRecord, pDeleteDnsRecord, pCredentials, pSrvList);
+                return ERROR_NOT_ENOUGH_MEMORY;
+            }
+            i += 1;
         }
         else
         {
             wprintf(L"Bad Argument: %s\n\n", argv[i]);
             PrintUsage();
-            CleanUp(pAddDnsRecord, pCredentials, pSrvList);
+            CleanUp(pAddDnsRecord, pDeleteDnsRecord, pCredentials, pSrvList);
             return ERROR_INVALID_PARAMETER;
         }
     }
@@ -139,7 +186,7 @@ int __cdecl wmain(int argc, wchar_t** argv)
     {
         wprintf(L"DNS name or value not provided\n\n");
         PrintUsage();
-        CleanUp(pAddDnsRecord, pCredentials, pSrvList);
+        CleanUp(pAddDnsRecord, pDeleteDnsRecord, pCredentials, pSrvList);
         return ERROR_INVALID_PARAMETER;
     }
 
@@ -152,7 +199,7 @@ int __cdecl wmain(int argc, wchar_t** argv)
         {
             wprintf(L"Invalid IPv6 address\n\n");
             PrintUsage();
-            CleanUp(pAddDnsRecord, pCredentials, pSrvList);
+            CleanUp(pAddDnsRecord, pDeleteDnsRecord, pCredentials, pSrvList);
             return ERROR_INVALID_PARAMETER;
         }
         pAddDnsRecord->Data.AAAA.Ip6Address.IP6Word[0] = in6addr.u.Word[0];
@@ -174,7 +221,7 @@ int __cdecl wmain(int argc, wchar_t** argv)
         {
             wprintf(L"Invalid IPv4 address\n\n");
             PrintUsage();
-            CleanUp(pAddDnsRecord, pCredentials, pSrvList);
+            CleanUp(pAddDnsRecord, pDeleteDnsRecord, pCredentials, pSrvList);
             return ERROR_INVALID_PARAMETER;
         }
         pAddDnsRecord->wDataLength = sizeof(DNS_A_DATA);
@@ -184,6 +231,13 @@ int __cdecl wmain(int argc, wchar_t** argv)
     pAddDnsRecord->pName = wFqdn;
     pAddDnsRecord->wType = wRecordType;
     pAddDnsRecord->dwTtl = dwTtl;
+
+    if (NULL != pDeleteDnsRecord)
+    {
+        pDeleteDnsRecord->pName = wFqdn;
+        pDeleteDnsRecord->wType = DNS_TYPE_ANY;
+        pDeleteDnsRecord->dwTtl = 0;
+    }
 
     if (NULL != wName)
     {
@@ -224,7 +278,7 @@ int __cdecl wmain(int argc, wchar_t** argv)
 
     wprintf(L"Start DNS registration\n");
     status = DnsModifyRecordsInSet_W(pAddDnsRecord,
-        NULL,
+        pDeleteDnsRecord,
         DNS_UPDATE_SECURITY_USE_DEFAULT,
         secHandle,
         pSrvList,
@@ -240,6 +294,6 @@ int __cdecl wmain(int argc, wchar_t** argv)
         wprintf(L"Added records successfully \n");
     }
 
-    CleanUp(pAddDnsRecord, pCredentials, pSrvList);
+    CleanUp(pAddDnsRecord, pDeleteDnsRecord, pCredentials, pSrvList);
     return 0;
 }
