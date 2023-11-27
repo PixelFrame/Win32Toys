@@ -46,6 +46,7 @@ int __cdecl wmain(int argc, wchar_t** argv)
 
     if (NULL == pAddDnsRecord)
     {
+        wprintf(L"Couldn't allocate memory!\n");
         return ERROR_NOT_ENOUGH_MEMORY;
     }
 
@@ -79,6 +80,7 @@ int __cdecl wmain(int argc, wchar_t** argv)
             }
             else
             {
+                wprintf(L"Bad DNS Type: %s\n\n", argv[i + 1]);
                 PrintUsage();
                 CleanUp(pAddDnsRecord, pCredentials, pSrvList);
                 return ERROR_INVALID_PARAMETER;
@@ -94,7 +96,15 @@ int __cdecl wmain(int argc, wchar_t** argv)
         }
         else if (_wcsicmp(argv[i], L"-l") == 0)
         {
-            dwTtl = _wtoi(argv[i + 1]);
+            WCHAR* end;
+            dwTtl = wcstol(argv[i + 1], &end, 10);
+            if (*end != NULL)
+            {
+                wprintf(L"Bad TTL value: %s\n\n", argv[i + 1]);
+                PrintUsage();
+                CleanUp(pAddDnsRecord, pCredentials, pSrvList);
+                return ERROR_INVALID_PARAMETER;
+            }
         }
         else if (_wcsicmp(argv[i], L"-s") == 0)
         {
@@ -102,12 +112,14 @@ int __cdecl wmain(int argc, wchar_t** argv)
             pSrvList = (PIP4_ARRAY)LocalAlloc(LPTR, sizeof(IP4_ARRAY));
             if (NULL == pSrvList)
             {
+                wprintf(L"Could not allocate memory!\n");
                 CleanUp(pAddDnsRecord, pCredentials, pSrvList);
                 return ERROR_NOT_ENOUGH_MEMORY;
             }
             pSrvList->AddrCount = 1;
             if (RtlIpv4StringToAddressW(argv[i + 1], FALSE, &terminator, &addr) != STATUS_SUCCESS)
             {
+                wprintf(L"Invalid IPv4 address\n\n");
                 PrintUsage();
                 CleanUp(pAddDnsRecord, pCredentials, pSrvList);
                 return ERROR_INVALID_PARAMETER;
@@ -116,6 +128,7 @@ int __cdecl wmain(int argc, wchar_t** argv)
         }
         else
         {
+            wprintf(L"Bad Argument: %s\n\n", argv[i]);
             PrintUsage();
             CleanUp(pAddDnsRecord, pCredentials, pSrvList);
             return ERROR_INVALID_PARAMETER;
@@ -124,6 +137,7 @@ int __cdecl wmain(int argc, wchar_t** argv)
 
     if (NULL == wFqdn || wValue == NULL)
     {
+        wprintf(L"DNS name or value not provided\n\n");
         PrintUsage();
         CleanUp(pAddDnsRecord, pCredentials, pSrvList);
         return ERROR_INVALID_PARAMETER;
@@ -136,6 +150,7 @@ int __cdecl wmain(int argc, wchar_t** argv)
         in6_addr in6addr;
         if (RtlIpv6StringToAddressW(wValue, &terminator, &in6addr) != STATUS_SUCCESS)
         {
+            wprintf(L"Invalid IPv6 address\n\n");
             PrintUsage();
             CleanUp(pAddDnsRecord, pCredentials, pSrvList);
             return ERROR_INVALID_PARAMETER;
@@ -157,6 +172,7 @@ int __cdecl wmain(int argc, wchar_t** argv)
         in_addr inaddr;
         if (RtlIpv4StringToAddressW(wValue, FALSE, &terminator, &inaddr) != STATUS_SUCCESS)
         {
+            wprintf(L"Invalid IPv4 address\n\n");
             PrintUsage();
             CleanUp(pAddDnsRecord, pCredentials, pSrvList);
             return ERROR_INVALID_PARAMETER;
@@ -196,8 +212,8 @@ int __cdecl wmain(int argc, wchar_t** argv)
                 status);
             secHandle = NULL;
         }
-        else if (!secHandle) {
-
+        else if (!secHandle) 
+        {
             wprintf(L"DnsAcquireContextHandle returned success but handle is NULL\n");
         }
         else
