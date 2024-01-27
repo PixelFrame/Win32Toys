@@ -150,7 +150,11 @@ int main(int argc, char** argv)
     if (NO_ERROR == dwError)
     {
         for (unsigned int i = 0; i < DhcpApiParams.nBytesData; ++i)
-            std::cout << std::hex << std::setfill('0') << std::setw(2) << DhcpApiParams.Data[i] << " ";
+            std::cout << std::hex 
+                      << std::setfill('0') 
+                      << std::setw(2) 
+                      << (unsigned short)DhcpApiParams.Data[i]          // We have to cast char to something else so that cout does not print the ASCII character...
+                      << " ";
     }
 
     return dwError;
