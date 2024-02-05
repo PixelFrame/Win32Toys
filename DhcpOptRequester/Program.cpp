@@ -8,7 +8,7 @@
 #include <iomanip>
 
 #pragma comment(lib, "IPHLPAPI.lib")
-#pragma comment( lib, "dhcpcsvc.lib" )
+#pragma comment(lib, "dhcpcsvc.lib")
 
 #define WORKING_BUFFER_SIZE 15000
 #define MAX_TRIES 3
@@ -89,6 +89,7 @@ BOOL GetAdapterGuid(CHAR* pszAdapterName, OUT CHAR* pszAdapterGuid)
             pCurrAdapterAddresses = pCurrAdapterAddresses->Next;
         }
     }
+    FREE(pAdapterAddresses);
     return FALSE;
 }
 
