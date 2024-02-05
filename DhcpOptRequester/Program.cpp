@@ -17,21 +17,19 @@
 
 void PrintUsage()
 {
-    std::cout << "DhcpOptRequester.exe < -a:AdapterName > < -i:OptId > [ -u:UserClass ] [ -v ]\n";
+    std::cout << "DhcpOptRequester.exe < -a:AdapterName > < -i:OptId > [ -u:UserClass ] [ -p ] [ -v ]\n";
     std::cout << "    -a Adapter to perform the DHCP request\n";
     std::cout << "    -i Option ID in dec\n";
     std::cout << "    -u User class\n";
+    std::cout << "    -p Register persistent request. Undo if already requested. Only one ID can be registered at the same time.\n";
     std::cout << "    -v Request vendor specific option. For Windows, the vendor class will always be \"MSFT 5.0\".\n";
 }
 
-WCHAR* CharStrToWCharStr(const char* c)
+void CharStrToWCharStr(const CHAR* c, OUT WCHAR* outwstr)
 {
     const size_t cSize = strlen(c) + 1;
     size_t returnValue = 0;
-    wchar_t* wc = new wchar_t[cSize];
-    if (mbstowcs_s(&returnValue, wc, cSize, c, cSize) == 0)
-        return wc;
-    else
+    if (mbstowcs_s(&returnValue, outwstr, cSize, c, 50) != 0)
     {
         std::cout << "Unable to convert char string to wide char string" << std::endl;
         exit(ERROR_INVALID_PARAMETER);
@@ -47,7 +45,9 @@ BOOL GetAdapterGuid(CHAR* pszAdapterName, OUT CHAR* pszAdapterGuid)
     DWORD                 dwBufLen = WORKING_BUFFER_SIZE;
     DWORD                 dwIterations = 0;
     DWORD                 dwRetVal;
-    WCHAR* pwszAdapterName = CharStrToWCharStr(pszAdapterName);
+    WCHAR                 pwszAdapterName[50]{};
+
+    CharStrToWCharStr(pszAdapterName, pwszAdapterName);
 
     do
     {
@@ -104,20 +104,22 @@ int main(int argc, char** argv)
     CHAR               TmpBuffer[1000]{};
     CHAR               pszAdapterGuid[40]{};
     DWORD              dwOptId = 0;
-    BOOL               bVendorSpecific = FALSE;
+    BOOL               fVendorSpecific = FALSE;
+    BOOL               fPersistent = FALSE;
     DHCPCAPI_CLASSID   ClassId;
     LPDHCPCAPI_CLASSID pClassId = NULL;
     CHAR* pszAdapterName = NULL;
-    WCHAR* pwszAdapterGuid = NULL;
+    WCHAR              pwszAdapterGuid[50]{};
+    WCHAR              pwszRequestId[20] = L"DhcpOptRequester";
 
-    BYTE paramMap = 0;   // 0000 aiuv
+    BYTE paramMap = 0;   // 000p aiuv
 
     for (int i = 1; i < argc; ++i)
     {
         if (argv[i][0] != '-'
             || strlen(argv[i]) < 2
-            || (argv[i][1] != 'v' && strlen(argv[i]) < 4)
-            || (argv[i][1] != 'v' && argv[i][2] != ':'))
+            || (argv[i][1] != 'v' && argv[i][1] != 'p' && strlen(argv[i]) < 4)
+            || (argv[i][1] != 'v' && argv[i][1] != 'p' && argv[i][2] != ':'))
         {
             std::cout << "Invalid argument: " << argv[i] << "\n\n";
             PrintUsage();
@@ -142,7 +144,7 @@ int main(int argc, char** argv)
                 PrintUsage();
                 exit(ERROR_INVALID_PARAMETER);
             }
-            CHAR * strEnd;
+            CHAR* strEnd;
             dwOptId = strtoul(argv[i] + 3, &strEnd, 10);
             if (*strEnd != '\0')
             {
@@ -173,8 +175,18 @@ int main(int argc, char** argv)
                 PrintUsage();
                 exit(ERROR_INVALID_PARAMETER);
             }
-            bVendorSpecific = TRUE;
+            fVendorSpecific = TRUE;
             paramMap |= 0x01;
+            break;
+        case 'p':
+            if ((paramMap & 0x10) != 0)
+            {
+                std::cout << "Duplicate argument: " << argv[i] << "\n\n";
+                PrintUsage();
+                exit(ERROR_INVALID_PARAMETER);
+            }
+            fPersistent = TRUE;
+            paramMap |= 0x10;
             break;
         default:
             std::cout << "Invalid argument: " << argv[i] << "\n\n";
@@ -195,12 +207,12 @@ int main(int argc, char** argv)
         std::cout << "Cannot find DHCPv4 enabled adapter with name " << pszAdapterName << std::endl;
         exit(ERROR_NOT_FOUND);
     }
-    pwszAdapterGuid = CharStrToWCharStr(pszAdapterGuid);
+    CharStrToWCharStr(pszAdapterGuid, pwszAdapterGuid);
 
     DHCPCAPI_PARAMS DhcpApiParams = {
             0,                // Flags
             dwOptId,          // OptionId
-            bVendorSpecific,  // vendor specific?
+            fVendorSpecific,  // vendor specific?
             NULL,             // data filled in on return
             0                 // nBytes
     };
@@ -214,16 +226,18 @@ int main(int argc, char** argv)
     };
 
     dwSize = sizeof(TmpBuffer);
+    DWORD dwFlags = DHCPCAPI_REQUEST_SYNCHRONOUS;
+    if (fPersistent) dwFlags |= DHCPCAPI_REQUEST_PERSISTENT;
     dwError = DhcpRequestParams(
-        DHCPCAPI_REQUEST_SYNCHRONOUS, // Flags
+        dwFlags,                      // Flags
         NULL,                         // Reserved
         pwszAdapterGuid,              // Adapter Name
-        pClassId,                     // not using class id
-        SendParams,                   // sent parameters
-        RequestParams,                // requesting params
-        (PBYTE)TmpBuffer,             // buffer
-        &dwSize,                      // buffer size
-        NULL                          // Request ID
+        pClassId,                     // User class id
+        SendParams,                   // Sent parameters
+        RequestParams,                // Requesting params
+        (PBYTE)TmpBuffer,             // Buffer
+        &dwSize,                      // Buffer size
+        pwszRequestId                 // Request ID
     );
 
     if (NO_ERROR == dwError)
@@ -234,6 +248,23 @@ int main(int argc, char** argv)
             << std::setw(2)
             << (unsigned short)DhcpApiParams.Data[i]          // We have to cast char to something else so that cout does not print the ASCII character...
             << " ";
+    }
+    else if (ERROR_ALREADY_EXISTS == dwError && fPersistent)
+    {
+        std::cout << "Persistent option request exists. Removing..." << std::endl;
+        dwError = DhcpUndoRequestParams(NULL, NULL, pwszAdapterGuid, pwszRequestId);   // Appears causing Defender false positive if the string declaration is not fixed WCHAR array...
+        if (NO_ERROR == dwError)
+        {
+            std::cout << "Persistent option request removed." << std::endl;
+        }
+        else 
+        {
+            std::cout << "Error occurred during removing persistent option request: " << dwError << std::endl;
+        }
+    }
+    else
+    {
+        std::cout << "Error occurred during request: " << dwError << std::endl;
     }
 
     return dwError;
