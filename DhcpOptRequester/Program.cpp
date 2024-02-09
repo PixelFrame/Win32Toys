@@ -17,7 +17,7 @@
 
 void PrintUsage()
 {
-    std::cout << "DhcpOptRequester.exe < -a:AdapterName > < -i:OptId > [ -u:UserClass ] [ -p ] [ -v ]\n";
+    std::cout << "DhcpOptRequester.exe <-a:AdapterName> <-i:OptId> [-u:UserClass] [-p] [-v]\n";
     std::cout << "    -a Adapter to perform the DHCP request\n";
     std::cout << "    -i Option ID in dec\n";
     std::cout << "    -u User class\n";
@@ -25,7 +25,7 @@ void PrintUsage()
     std::cout << "    -v Request vendor specific option. For Windows, the vendor class will always be \"MSFT 5.0\".\n";
 }
 
-void CharStrToWCharStr(const CHAR* c, OUT WCHAR* outwstr)
+void CharStrToWCharStr(_In_ const CHAR* c, _Out_ WCHAR* outwstr)
 {
     const size_t cSize = strlen(c) + 1;
     size_t returnValue = 0;
@@ -36,7 +36,7 @@ void CharStrToWCharStr(const CHAR* c, OUT WCHAR* outwstr)
     }
 }
 
-BOOL GetAdapterGuid(CHAR* pszAdapterName, OUT CHAR* pszAdapterGuid)
+BOOL GetAdapterGuid(_In_ const CHAR* pszAdapterName, _Out_ CHAR* pszAdapterGuid)
 {
     DWORD                 dwFamily = AF_INET;
     DWORD                 dwFlags = GAA_FLAG_INCLUDE_ALL_INTERFACES | GAA_FLAG_INCLUDE_ALL_COMPARTMENTS;
@@ -95,7 +95,7 @@ BOOL GetAdapterGuid(CHAR* pszAdapterName, OUT CHAR* pszAdapterGuid)
 
 int main(int argc, char** argv)
 {
-    if (argc < 3 || argc > 5)
+    if (argc < 3 || argc > 6)
     {
         PrintUsage();
         exit(ERROR_INVALID_PARAMETER);
