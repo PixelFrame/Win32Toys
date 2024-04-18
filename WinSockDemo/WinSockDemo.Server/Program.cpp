@@ -15,21 +15,17 @@ using std::endl;
 const int DEFAULT_BUFLEN = 512;
 const char* DEFAULT_PORT = "27015";
 
-WSADATA wsaData = {};
-int iResult = 0;
-SOCKET ListenSocket = INVALID_SOCKET;
-SOCKET ClientSocket = INVALID_SOCKET;
-PADDRINFOA result = NULL;
-ADDRINFOA hints = {};
-LPCSTR initMsg = "Hello";
-LPCSTR lastMsg = "Bye";
-int iSendResult = 0;
+WSADATA wsaData              = {};
+int iResult                  = 0;
+SOCKET ListenSocket          = INVALID_SOCKET;
+SOCKET ClientSocket          = INVALID_SOCKET;
+PADDRINFOA result            = NULL;
+ADDRINFOA hints              = {};
 char recvbuf[DEFAULT_BUFLEN] = {};
-int recvbuflen = DEFAULT_BUFLEN;
+int recvbuflen               = DEFAULT_BUFLEN;
 
 int main()
 {
-
     // Initialize Winsock
     iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
     if (iResult != 0)
@@ -106,7 +102,7 @@ int main()
             cout << "Client Message: " << recvbuf << endl;
             for (int i = 0; i < iResult; ++i)
             {
-                recvbuf[i] = '\0';
+                recvbuf[i] = '\0';   // Clear receive buffer for new message
             }
         }
         else if (iResult == 0)
