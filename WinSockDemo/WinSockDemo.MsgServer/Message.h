@@ -1,22 +1,21 @@
 #pragma once
 
-#include <Windows.h>
-#include <string>
-
-using std::string;
+#include "StdAfx.h"
 
 class Message
 {
 public:
-    Message() = default;
-    Message(string value, FILETIME time) : _value(value), _time(time) {}
+    Message(string value, string source) : _value(value), _source(source)
+    {
+        GetSystemTime(&_time);
+    }
 
     string value();
-    FILETIME time();
+    string time();
     string source();
 
 private:
     string _value = "";
-    FILETIME _time = { 0, 0 };
+    SYSTEMTIME _time = {};
     string _source = "127.0.0.1";
 };
