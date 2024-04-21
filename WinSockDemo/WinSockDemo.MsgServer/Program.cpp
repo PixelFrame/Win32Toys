@@ -1,4 +1,4 @@
-#include "Message.h"
+#include "..\WinSockDemo.Common\Message.h"
 #include "TcpServer.h"
 #include <iostream>
 

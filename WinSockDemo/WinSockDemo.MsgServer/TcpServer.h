@@ -1,7 +1,7 @@
 #pragma once
 
 #include "StdAfx.h"
-#include "Message.h"
+#include "..\WinSockDemo.Common\Message.h"
 
 class TcpServer
 {

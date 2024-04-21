@@ -15,30 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Program.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="TcpServer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="StdAfx.h">
-      <Filter>Header Files</Filter>
-    </ClCompile>
-    <ClCompile Include="NetworkException.h">
-      <Filter>Header Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\WinSockDemo.Common\Message.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="TcpServer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Win32Exception.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\WinSockDemo.Common\Message.h">
+    <ClInclude Include="AsyncTcpServer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

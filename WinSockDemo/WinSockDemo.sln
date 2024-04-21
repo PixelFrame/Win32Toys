@@ -9,6 +9,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "WinSockDemo.Server", "WinSo
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "WinSockDemo.MsgServer", "WinSockDemo.MsgServer\WinSockDemo.MsgServer.vcxproj", "{F47E1F9C-E456-4C2C-B3DB-CE235C53A9D3}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "WinSockDemo.AsyncMsgServer", "WinSockDemo.AsyncMsgServer\WinSockDemo.AsyncMsgServer.vcxproj", "{E1FC617C-4CA6-4B4D-9610-FA8391957077}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -41,6 +43,14 @@ Global
 		{F47E1F9C-E456-4C2C-B3DB-CE235C53A9D3}.Release|x64.Build.0 = Release|x64
 		{F47E1F9C-E456-4C2C-B3DB-CE235C53A9D3}.Release|x86.ActiveCfg = Release|Win32
 		{F47E1F9C-E456-4C2C-B3DB-CE235C53A9D3}.Release|x86.Build.0 = Release|Win32
+		{E1FC617C-4CA6-4B4D-9610-FA8391957077}.Debug|x64.ActiveCfg = Debug|x64
+		{E1FC617C-4CA6-4B4D-9610-FA8391957077}.Debug|x64.Build.0 = Debug|x64
+		{E1FC617C-4CA6-4B4D-9610-FA8391957077}.Debug|x86.ActiveCfg = Debug|Win32
+		{E1FC617C-4CA6-4B4D-9610-FA8391957077}.Debug|x86.Build.0 = Debug|Win32
+		{E1FC617C-4CA6-4B4D-9610-FA8391957077}.Release|x64.ActiveCfg = Release|x64
+		{E1FC617C-4CA6-4B4D-9610-FA8391957077}.Release|x64.Build.0 = Release|x64
+		{E1FC617C-4CA6-4B4D-9610-FA8391957077}.Release|x86.ActiveCfg = Release|Win32
+		{E1FC617C-4CA6-4B4D-9610-FA8391957077}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

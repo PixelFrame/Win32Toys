@@ -12,7 +12,7 @@
 #include <stdexcept>
 
 using std::string;
-using std::format;      // Need C++20
+using std::format;
 using std::vector;
 using std::exception;
 using std::runtime_error;

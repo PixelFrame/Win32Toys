@@ -1,6 +1,16 @@
 #pragma once
 
-#include "StdAfx.h"
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+
+#include <Windows.h>
+
+#include <string>
+#include <format>
+
+using std::string;
+using std::format;      // Need C++20
 
 class Message
 {
