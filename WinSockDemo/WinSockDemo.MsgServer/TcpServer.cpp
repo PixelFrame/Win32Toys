@@ -34,11 +34,7 @@ TcpServer::TcpServer()
 
 TcpServer::~TcpServer()
 {
-    if (isConnected())
-    {
-        Disconnect();
-    }
-    if (isListening())
+    if (_isListening)
     {
         Stop();
     }
@@ -120,13 +116,13 @@ void TcpServer::ReadMessage(vector<Message*>& msgs)
     }
     else if (iResult == 0)
     {
-        closesocket(_clientSocket);
+        Disconnect();
         WSACleanup();
         throw NetworkException("Connection closed unexpectedly");
     }
     else
     {
-        closesocket(_clientSocket);
+        Disconnect();
         WSACleanup();
         throw Win32Exception("recv", WSAGetLastError());
     }
