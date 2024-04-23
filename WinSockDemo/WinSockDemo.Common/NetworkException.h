@@ -2,6 +2,12 @@
 
 #include "StdAfx.h"
 
+#include <string>
+#include <format>
+
+using std::string;
+using std::format;
+
 class NetworkException : public exception
 {
 public:

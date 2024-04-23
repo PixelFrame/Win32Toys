@@ -24,9 +24,6 @@
     <ClCompile Include="StdAfx.h">
       <Filter>Header Files</Filter>
     </ClCompile>
-    <ClCompile Include="NetworkException.h">
-      <Filter>Header Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\WinSockDemo.Common\Message.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -35,10 +32,13 @@
     <ClInclude Include="TcpServer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Win32Exception.h">
+    <ClInclude Include="..\WinSockDemo.Common\Message.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\WinSockDemo.Common\Message.h">
+    <ClInclude Include="..\WinSockDemo.Common\NetworkException.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\WinSockDemo.Common\Win32Exception.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

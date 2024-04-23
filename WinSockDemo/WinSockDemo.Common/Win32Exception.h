@@ -1,6 +1,10 @@
 #pragma once
 
-#include "StdAfx.h"
+#include <string>
+#include <format>
+
+using std::string;
+using std::format;
 
 class Win32Exception : public exception
 {
