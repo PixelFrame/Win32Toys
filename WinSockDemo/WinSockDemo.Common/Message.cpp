@@ -17,3 +17,8 @@ string Message::source()
 {
     return _source;
 }
+
+string Message::to_string()
+{
+    return format("[{}] [{}] {}", time(), source(), value());
+}

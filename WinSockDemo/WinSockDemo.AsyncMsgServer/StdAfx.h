@@ -10,6 +10,7 @@
 #include <format>
 #include <vector>
 #include <stdexcept>
+#include <iostream>
 
 using std::string;
 using std::format;

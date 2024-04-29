@@ -23,6 +23,7 @@ public:
     string value();
     string time();
     string source();
+    string to_string();
 
 private:
     string _value = "";
