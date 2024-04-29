@@ -10,18 +10,18 @@ AsyncTcpServer::AsyncTcpServer()
     {
         throw Win32Exception("WSAStartup", iResult);
     }
-    _debug.push_back("[AsyncTcpServer::AsyncTcpServer] Constructor completed");
+    _debug.push_back(FormatDebugString("AsyncTcpServer::AsyncTcpServer", "Constructor completed"));
 }
 
 AsyncTcpServer::~AsyncTcpServer()
 {
     if (_bIsRunning) { Stop(); }
-    _debug.push_back("[AsyncTcpServer::~AsyncTcpServer] Destructor completed");
+    _debug.push_back(FormatDebugString("AsyncTcpServer::~AsyncTcpServer", "Destructor completed"));
 }
 
 void AsyncTcpServer::Start()
 {
-    _debug.push_back("[AsyncTcpServer::Start] Enter Start method");
+    _debug.push_back(FormatDebugString("AsyncTcpServer::Start", "Enter Start method"));
     if (_bIsRunning) return;
     ADDRINFOA hints = {};
     int iResult = 0;
@@ -36,7 +36,7 @@ void AsyncTcpServer::Start()
         WSACleanup();
         throw Win32Exception("getaddrinfo", iResult);
     }
-    _debug.push_back("[AsyncTcpServer::Start] Acquired listen address from getaddrinfo");
+    _debug.push_back(FormatDebugString("AsyncTcpServer::Start", "Acquired listen address from getaddrinfo"));
 
     _listenSocket = socket(_pListenAddr->ai_family, _pListenAddr->ai_socktype, _pListenAddr->ai_protocol);
     if (_listenSocket == INVALID_SOCKET)
@@ -45,7 +45,7 @@ void AsyncTcpServer::Start()
         WSACleanup();
         throw Win32Exception("socket", WSAGetLastError());
     }
-    _debug.push_back("[AsyncTcpServer::Start] Listen socket created");
+    _debug.push_back(FormatDebugString("AsyncTcpServer::Start", "Listen socket created"));
 
     iResult = bind(_listenSocket, _pListenAddr->ai_addr, (int)_pListenAddr->ai_addrlen);
     if (iResult == SOCKET_ERROR)
@@ -55,7 +55,7 @@ void AsyncTcpServer::Start()
         WSACleanup();
         throw Win32Exception("bind", WSAGetLastError());
     }
-    _debug.push_back("[AsyncTcpServer::Start] Listen socket bound");
+    _debug.push_back(FormatDebugString("AsyncTcpServer::Start", "Listen socket bound"));
 
     freeaddrinfo(_pListenAddr);
 
@@ -66,7 +66,7 @@ void AsyncTcpServer::Start()
         WSACleanup();
         throw Win32Exception("listen", WSAGetLastError());
     }
-    _debug.push_back("[AsyncTcpServer::Start] Listen socket listening");
+    _debug.push_back(FormatDebugString("AsyncTcpServer::Start", "Listen socket listening"));
 
     _listenEvent = WSACreateEvent();
     if (_listenEvent == WSA_INVALID_EVENT)
@@ -75,7 +75,7 @@ void AsyncTcpServer::Start()
         WSACleanup();
         throw Win32Exception("WSACreateEvent", WSAGetLastError());
     }
-    _debug.push_back("[AsyncTcpServer::Start] Listen socket event created");
+    _debug.push_back(FormatDebugString("AsyncTcpServer::Start", "Listen socket event created"));
 
     if (WSAEventSelect(_listenSocket, _listenEvent, FD_ACCEPT | FD_CLOSE) == SOCKET_ERROR)
     {
@@ -83,7 +83,7 @@ void AsyncTcpServer::Start()
         WSACleanup();
         throw Win32Exception("WSAEventSelect", WSAGetLastError());
     }
-    _debug.push_back("[AsyncTcpServer::Start] Listen socket event selected");
+    _debug.push_back(FormatDebugString("AsyncTcpServer::Start", "Listen socket event selected"));
 
     _allEvents[0] = _listenEvent;
     _allSockets[0] = _listenSocket;
@@ -95,20 +95,20 @@ void AsyncTcpServer::Start()
                                        this,
                                        0,
                                        &_dwEventHandleThreadId);
-    _debug.push_back("[AsyncTcpServer::Start] Event handle thread created");
+    _debug.push_back(FormatDebugString("AsyncTcpServer::Start", "Event handle thread created"));
 
     _bIsRunning = true;
-    _debug.push_back("[AsyncTcpServer::Start] Server runnig");
+    _debug.push_back(FormatDebugString("AsyncTcpServer::Start", "Server runnig"));
 }
 
 void AsyncTcpServer::Stop()
 {
-    _debug.push_back("[AsyncTcpServer::Stop] Enter Stop method");
+    _debug.push_back(FormatDebugString("AsyncTcpServer::Stop", "Enter Stop method"));
     if (!_bIsRunning) return;
     _bShouldStop = true;
-    _debug.push_back("[AsyncTcpServer::Stop] Waiting for event handle thread exiting");
+    _debug.push_back(FormatDebugString("AsyncTcpServer::Stop", "Waiting for event handle thread exiting"));
     WaitForSingleObject(_hEventHandleThread, INFINITE);
-    _debug.push_back("[AsyncTcpServer::Stop] Event handle thread exited");
+    _debug.push_back(FormatDebugString("AsyncTcpServer::Stop", "Event handle thread exited"));
     for (int i = 0; i < _iCount; ++i)
     {
         WSACloseEvent(_allEvents[i]);
@@ -118,7 +118,7 @@ void AsyncTcpServer::Stop()
     _iCount = 0;
     _bIsRunning = false;
     _bShouldStop = false;
-    _debug.push_back("[AsyncTcpServer::Stop] Server stopped");
+    _debug.push_back(FormatDebugString("AsyncTcpServer::Stop", "Server stopped"));
 }
 
 bool AsyncTcpServer::isRunning()
@@ -161,7 +161,7 @@ DWORD WINAPI AsyncTcpServer::_EventHandleThreadStart(void* Param)
 
 void AsyncTcpServer::_HandleEvent()
 {
-    _debug.push_back("[AsyncTcpServer::_HandleEvent] Enter _HandleEvent method");
+    _debug.push_back(FormatDebugString("AsyncTcpServer::_HandleEvent", "Enter _HandleEvent method"));
     while (!_bShouldStop)
     {
         int iIndex = WSAWaitForMultipleEvents(_iCount, _allEvents, false, 1000, false);
@@ -178,7 +178,7 @@ void AsyncTcpServer::_HandleEvent()
         WSAEnumNetworkEvents(currentSocket, _allEvents[iIndex], &currentEvent);
         if (currentEvent.lNetworkEvents & FD_ACCEPT)
         {
-            _debug.push_back("[AsyncTcpServer::_HandleEvent] Accept event received");
+            _debug.push_back(FormatDebugString("AsyncTcpServer::_HandleEvent", "Accept event received"));
             if (currentEvent.iErrorCode[FD_ACCEPT_BIT] == 0)
             {
                 if (_iCount >= WSA_MAXIMUM_WAIT_EVENTS)
@@ -200,7 +200,7 @@ void AsyncTcpServer::_HandleEvent()
         }
         else if (currentEvent.lNetworkEvents & FD_READ)
         {
-            _debug.push_back("[AsyncTcpServer::_HandleEvent] Read event received");
+            _debug.push_back(FormatDebugString("AsyncTcpServer::_HandleEvent", "Read event received"));
             if (currentEvent.iErrorCode[FD_READ_BIT] == 0)
             {
                 char buf[_RECV_BUFF_MAX] = { 0 };
@@ -219,7 +219,7 @@ void AsyncTcpServer::_HandleEvent()
         }
         else if (currentEvent.lNetworkEvents & FD_CLOSE)
         {
-            _debug.push_back("[AsyncTcpServer::_HandleEvent] Close event received");
+            _debug.push_back(FormatDebugString("AsyncTcpServer::_HandleEvent", "Close event received"));
             WSACloseEvent(_allEvents[iIndex]);
             shutdown(_allSockets[iIndex], SD_BOTH);
             closesocket(_allSockets[iIndex]);
@@ -234,8 +234,8 @@ void AsyncTcpServer::_HandleEvent()
         }
         else if (currentEvent.lNetworkEvents & FD_WRITE)
         {
-            _debug.push_back("[AsyncTcpServer::_HandleEvent] Write event received");
+            _debug.push_back(FormatDebugString("AsyncTcpServer::_HandleEvent", "Write event received"));
         }
     }
-    _debug.push_back("[AsyncTcpServer::_HandleEvent] _HandleEvent thread exiting");
+    _debug.push_back(FormatDebugString("AsyncTcpServer::_HandleEvent", "_HandleEvent thread exiting"));
 }

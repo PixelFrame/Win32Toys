@@ -18,5 +18,6 @@ using std::vector;
 using std::exception;
 using std::runtime_error;
 
+#include "../WinSockDemo.Common/Utilities.h"
 #include "../WinSockDemo.Common/Win32Exception.h"
 #include "../WinSockDemo.Common/NetworkException.h"
