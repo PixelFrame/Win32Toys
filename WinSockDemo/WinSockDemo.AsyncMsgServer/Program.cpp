@@ -7,15 +7,17 @@ using std::cout;
 using std::cin;
 using std::endl;
 
-void printOperations()
+static void printOperations()
 {
     cout << "Operations:" << endl
         << "1. Print status" << endl
         << "2. Print messages" << endl
-        << "3. Print debug log" << endl
-        << "4. Stop server" << endl
-        << "5. Restart server" << endl
-        << "6. Exit program" << endl;
+        << "3. Clear messages" << endl
+        << "4. Print debug log" << endl
+        << "5. Clear debug log" << endl
+        << "6. Stop server" << endl
+        << "7. Restart server" << endl
+        << "8. Exit program" << endl;
 }
 
 int main()
@@ -57,12 +59,18 @@ int main()
             }
             break;
         case 2:
-            pServer->printMessages(cout);
+            pServer->PrintMessages(cout);
             break;
         case 3:
-            pServer->printDebug(cout);
+            pServer->ClearMessage();
             break;
         case 4:
+            pServer->PrintDebug(cout);
+            break;
+        case 5:
+            pServer->ClearDebug();
+            break;
+        case 6:
             if (pServer->isRunning())
             {
                 pServer->Stop();
@@ -70,12 +78,12 @@ int main()
             }
             else { cout << "Server not running!" << endl; }
             break;
-        case 5:
+        case 7:
             pServer->Stop();
             pServer->Start();
             cout << "Server restarted" << endl;
             break;
-        case 6:
+        case 8:
             if (pServer->isRunning()) 
             {
                 pServer->Stop();

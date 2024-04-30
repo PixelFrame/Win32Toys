@@ -4,7 +4,7 @@
 #include <string>
 #include <format>
 
-std::string FormatSystemTimeString(SYSTEMTIME time);
+std::string FormatSystemTimeString(const SYSTEMTIME time);
 
 std::string GetCurrentTimeString();
 

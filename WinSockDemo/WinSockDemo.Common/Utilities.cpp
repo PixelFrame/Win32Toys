@@ -1,6 +1,6 @@
 #include "Utilities.h"
 
-std::string FormatSystemTimeString(SYSTEMTIME time)
+std::string FormatSystemTimeString(const SYSTEMTIME time)
 {
     return std::format("{}-{:02}-{:02} {:02}:{:02}:{:02}.{:03}",
         time.wYear, time.wMonth, time.wDay,
@@ -8,7 +8,6 @@ std::string FormatSystemTimeString(SYSTEMTIME time)
 }
 
 std::string GetCurrentTimeString()
-
 {
     SYSTEMTIME now;
     GetSystemTime(&now);

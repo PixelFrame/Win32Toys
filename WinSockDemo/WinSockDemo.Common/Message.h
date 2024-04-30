@@ -20,10 +20,10 @@ public:
         GetSystemTime(&_time);
     }
 
-    string value();
-    string time();
-    string source();
-    string to_string();
+    string value() const;
+    string time() const;
+    string source() const;
+    string to_string() const;
 
 private:
     string _value = "";

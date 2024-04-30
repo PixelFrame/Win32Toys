@@ -1,7 +1,5 @@
 #pragma once
 
-#include "StdAfx.h"
-
 #include <string>
 #include <format>
 
