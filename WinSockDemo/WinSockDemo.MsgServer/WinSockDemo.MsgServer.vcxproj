@@ -130,6 +130,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\WinSockDemo.Common\Message.cpp" />
+    <ClCompile Include="..\WinSockDemo.Common\Utilities.cpp" />
     <ClCompile Include="Program.cpp" />
     <ClCompile Include="StdAfx.h" />
     <ClCompile Include="TcpServer.cpp" />
@@ -137,6 +138,7 @@
   <ItemGroup>
     <ClInclude Include="..\WinSockDemo.Common\Message.h" />
     <ClInclude Include="..\WinSockDemo.Common\NetworkException.h" />
+    <ClInclude Include="..\WinSockDemo.Common\Utilities.h" />
     <ClInclude Include="..\WinSockDemo.Common\Win32Exception.h" />
     <ClInclude Include="TcpServer.h" />
   </ItemGroup>

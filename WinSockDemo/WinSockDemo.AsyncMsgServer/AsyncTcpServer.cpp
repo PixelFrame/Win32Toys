@@ -1,9 +1,15 @@
 #include "AsyncTcpServer.h"
 
-AsyncTcpServer::AsyncTcpServer()
+AsyncTcpServer::AsyncTcpServer(unsigned short port)
 {
     WSADATA wsaData = {};
     int iResult = 0;
+
+    if (port != 0)
+    {
+        sprintf_s(_listenPort, 6, "%d", port);
+        _debug.push_back(FormatDebugString("AsyncTcpServer::AsyncTcpServer", "Custom port set"));
+    }
 
     iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
     if (iResult != 0)
@@ -16,6 +22,7 @@ AsyncTcpServer::AsyncTcpServer()
 AsyncTcpServer::~AsyncTcpServer()
 {
     if (_bIsRunning) { Stop(); }
+    WSACleanup();
     _debug.push_back(FormatDebugString("AsyncTcpServer::~AsyncTcpServer", "Destructor completed"));
 }
 
@@ -30,7 +37,7 @@ void AsyncTcpServer::Start()
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_protocol = IPPROTO_TCP;
     hints.ai_flags = AI_PASSIVE;
-    iResult = getaddrinfo(NULL, _LISTEN_PORT, &hints, &_pListenAddr);
+    iResult = getaddrinfo(NULL, _listenPort, &hints, &_pListenAddr);
     if (iResult != 0)
     {
         WSACleanup();
@@ -41,19 +48,21 @@ void AsyncTcpServer::Start()
     _listenSocket = socket(_pListenAddr->ai_family, _pListenAddr->ai_socktype, _pListenAddr->ai_protocol);
     if (_listenSocket == INVALID_SOCKET)
     {
+        iResult = WSAGetLastError();
         freeaddrinfo(_pListenAddr);
         WSACleanup();
-        throw Win32Exception("socket", WSAGetLastError());
+        throw Win32Exception("socket", iResult);
     }
     _debug.push_back(FormatDebugString("AsyncTcpServer::Start", "Listen socket created"));
 
     iResult = bind(_listenSocket, _pListenAddr->ai_addr, (int)_pListenAddr->ai_addrlen);
     if (iResult == SOCKET_ERROR)
     {
+        iResult = WSAGetLastError();
         freeaddrinfo(_pListenAddr);
         closesocket(_listenSocket);
         WSACleanup();
-        throw Win32Exception("bind", WSAGetLastError());
+        throw Win32Exception("bind", iResult);
     }
     _debug.push_back(FormatDebugString("AsyncTcpServer::Start", "Listen socket bound"));
 
@@ -62,26 +71,29 @@ void AsyncTcpServer::Start()
     iResult = listen(_listenSocket, SOMAXCONN);
     if (iResult == SOCKET_ERROR)
     {
+        iResult = WSAGetLastError();
         closesocket(_listenSocket);
         WSACleanup();
-        throw Win32Exception("listen", WSAGetLastError());
+        throw Win32Exception("listen", iResult);
     }
     _debug.push_back(FormatDebugString("AsyncTcpServer::Start", "Listen socket listening"));
 
     _listenEvent = WSACreateEvent();
     if (_listenEvent == WSA_INVALID_EVENT)
     {
+        iResult = WSAGetLastError();
         closesocket(_listenSocket);
         WSACleanup();
-        throw Win32Exception("WSACreateEvent", WSAGetLastError());
+        throw Win32Exception("WSACreateEvent", iResult);
     }
     _debug.push_back(FormatDebugString("AsyncTcpServer::Start", "Listen socket event created"));
 
     if (WSAEventSelect(_listenSocket, _listenEvent, FD_ACCEPT | FD_CLOSE) == SOCKET_ERROR)
     {
+        iResult = WSAGetLastError();
         closesocket(_listenSocket);
         WSACleanup();
-        throw Win32Exception("WSAEventSelect", WSAGetLastError());
+        throw Win32Exception("WSAEventSelect", iResult);
     }
     _debug.push_back(FormatDebugString("AsyncTcpServer::Start", "Listen socket event selected"));
 
@@ -129,6 +141,25 @@ bool AsyncTcpServer::isRunning()
 int AsyncTcpServer::connectCount()
 {
     return _iCount - 1;
+}
+
+string AsyncTcpServer::listenAddress()
+{
+    if (!_bIsRunning) return string("Server not running");
+    SOCKADDR_IN serverAddr = { 0 };
+    char serverAddrStr[INET_ADDRSTRLEN] = { 0 };
+    int serverAddrLen = sizeof(serverAddr);
+    getsockname(_listenSocket, (sockaddr*) &serverAddr, &serverAddrLen);
+    inet_ntop(serverAddr.sin_family, &(serverAddr.sin_addr), serverAddrStr, INET_ADDRSTRLEN);
+    unsigned short port = ntohs(serverAddr.sin_port);
+    sprintf_s(serverAddrStr, INET_ADDRSTRLEN, "%s:%d", serverAddrStr, port);
+    return string(serverAddrStr);
+}
+
+string AsyncTcpServer::eventHandleThreadInfo()
+{
+    if (!_bIsRunning) return string("Server not running");
+    return format("ID {} | HANDLE {}", _dwEventHandleThreadId, _hEventHandleThread);
 }
 
 void AsyncTcpServer::printMessages(std::ostream& os)
@@ -183,6 +214,7 @@ void AsyncTcpServer::_HandleEvent()
             {
                 if (_iCount >= WSA_MAXIMUM_WAIT_EVENTS)
                 {
+                    _debug.push_back(FormatDebugString("AsyncTcpServer::_HandleEvent", "Reached maximum clients"));
                     continue;
                 }
                 sockaddr_in addr = {};
@@ -195,6 +227,7 @@ void AsyncTcpServer::_HandleEvent()
                     _allEvents[_iCount] = newClientEvent;
                     _allSockets[_iCount] = newClientSocket;
                     _iCount++;
+                    _debug.push_back(FormatDebugString("AsyncTcpServer::_HandleEvent", "Accepted new client"));
                 }
             }
         }
@@ -211,9 +244,12 @@ void AsyncTcpServer::_HandleEvent()
                     char clientAddrStr[INET_ADDRSTRLEN] = {0};
                     int clientAddrLen = sizeof(clientAddr);
                     getpeername(currentSocket, (sockaddr*) &clientAddr, &clientAddrLen);
-                    inet_ntop(AF_INET, &(clientAddr.sin_addr), clientAddrStr, INET_ADDRSTRLEN);
+                    inet_ntop(clientAddr.sin_family, &(clientAddr.sin_addr), clientAddrStr, INET_ADDRSTRLEN);
+                    unsigned short port = ntohs(clientAddr.sin_port);
+                    sprintf_s(clientAddrStr, INET_ADDRSTRLEN, "%s:%d", clientAddrStr, port);
                     _messages.push_back(Message(buf, clientAddrStr));
                     //send(currentSocket, _ACK_MSG, strlen(_ACK_MSG), 0);
+                    _debug.push_back(FormatDebugString("AsyncTcpServer::_HandleEvent", "Received message"));
                 }
             }
         }

@@ -130,7 +130,9 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\WinSockDemo.Common\Message.h" />
+    <ClInclude Include="..\WinSockDemo.Common\NetworkException.h" />
     <ClInclude Include="..\WinSockDemo.Common\Utilities.h" />
+    <ClInclude Include="..\WinSockDemo.Common\Win32Exception.h" />
     <ClInclude Include="AsyncTcpServer.h" />
     <ClInclude Include="StdAfx.h" />
   </ItemGroup>

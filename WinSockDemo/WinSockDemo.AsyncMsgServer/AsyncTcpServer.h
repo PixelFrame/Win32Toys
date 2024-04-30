@@ -6,7 +6,7 @@
 class AsyncTcpServer
 {
 public:
-    AsyncTcpServer();
+    AsyncTcpServer(unsigned short port = 0);
     ~AsyncTcpServer();
 
     void Start();
@@ -14,6 +14,8 @@ public:
 
     bool isRunning();
     int connectCount();
+    string listenAddress();
+    string eventHandleThreadInfo();
     void printMessages(std::ostream&);
     void printDebug(std::ostream&);
 
@@ -33,9 +35,9 @@ private:
 
     bool _bIsRunning = false;
     PADDRINFOA _pListenAddr = nullptr;
+    char _listenPort[6] = "27015";
 
     static constexpr const char* _ACK_MSG = "ACK";
-    static constexpr const char* _LISTEN_PORT = "27015";
     static constexpr int _RECV_BUFF_MAX = 1024;
 
     void _HandleEvent();

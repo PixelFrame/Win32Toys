@@ -20,8 +20,18 @@ void printOperations()
 
 int main()
 {
-    auto server = AsyncTcpServer();
-    server.Start();
+    AsyncTcpServer* pServer = nullptr; 
+    try
+    {
+        pServer = new AsyncTcpServer();
+        pServer->Start();
+    }
+    catch(exception& e)
+    {
+        cout << "Error happened during server start: " << e.what() << endl;
+        if (pServer) delete pServer;
+        return -1;
+    }
     int userChoice = 0xFF;
     bool stopping = false;
 
@@ -35,32 +45,40 @@ int main()
         switch (userChoice)
         {
         case 1:
-            cout << "Is server running: " << server.isRunning() << endl
-                << "Current connection: " << server.connectCount() << endl;
+            if (pServer->isRunning())
+            {
+                cout << "Server is listening at: " << pServer->listenAddress() << endl
+                    << "Event handling thread: " << pServer->eventHandleThreadInfo() << endl
+                    << "Current connection: " << pServer->connectCount() << endl;
+            }
+            else
+            {
+                cout << "Server is not running..." << endl;
+            }
             break;
         case 2:
-            server.printMessages(cout);
+            pServer->printMessages(cout);
             break;
         case 3:
-            server.printDebug(cout);
+            pServer->printDebug(cout);
             break;
         case 4:
-            if (server.isRunning())
+            if (pServer->isRunning())
             {
-                server.Stop();
+                pServer->Stop();
                 cout << "Server stopped" << endl;
             }
             else { cout << "Server not running!" << endl; }
             break;
         case 5:
-            server.Stop();
-            server.Start();
+            pServer->Stop();
+            pServer->Start();
             cout << "Server restarted" << endl;
             break;
         case 6:
-            if (server.isRunning()) 
+            if (pServer->isRunning()) 
             {
-                server.Stop();
+                pServer->Stop();
                 cout << "Server stopped" << endl;
             }
             stopping = true;
@@ -73,5 +91,6 @@ int main()
         cin.clear();
         cin.ignore(INT_MAX, '\n');
     }
+    delete pServer;
     cout << "Program exiting" << endl;
 }
