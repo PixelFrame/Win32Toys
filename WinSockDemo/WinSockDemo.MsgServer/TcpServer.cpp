@@ -100,7 +100,7 @@ void TcpServer::ReadMessage(vector<Message*>& msgs)
     if (iResult > 0)
     {
         Message* newMsg = new Message(_recvBuf, _clientAddr);
-        msgs.push_back(newMsg);
+        msgs.emplace_back(newMsg);
 
         if (strcmp(_recvBuf, _STOP_MSG) == 0)
         {
