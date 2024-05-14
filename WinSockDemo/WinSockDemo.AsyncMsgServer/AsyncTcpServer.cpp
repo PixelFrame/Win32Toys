@@ -63,7 +63,6 @@ void AsyncTcpServer::Start()
     iResult = getaddrinfo(NULL, _listenPort, &hints, &_pListenAddr);
     if (iResult != 0)
     {
-        WSACleanup();
         throw Win32Exception("getaddrinfo", iResult);
     }
     _debug.emplace_back(FormatDebugString("AsyncTcpServer::Start", "Acquired listen address from getaddrinfo"));
@@ -74,7 +73,6 @@ void AsyncTcpServer::Start()
     {
         iResult = WSAGetLastError();
         freeaddrinfo(_pListenAddr);
-        WSACleanup();
         throw Win32Exception("socket", iResult);
     }
     _debug.emplace_back(FormatDebugString("AsyncTcpServer::Start", "Listen socket created"));
@@ -86,7 +84,6 @@ void AsyncTcpServer::Start()
         iResult = WSAGetLastError();
         freeaddrinfo(_pListenAddr);
         closesocket(_listenSocket);
-        WSACleanup();
         throw Win32Exception("bind", iResult);
     }
     _debug.emplace_back(FormatDebugString("AsyncTcpServer::Start", "Listen socket bound"));
@@ -99,7 +96,6 @@ void AsyncTcpServer::Start()
     {
         iResult = WSAGetLastError();
         closesocket(_listenSocket);
-        WSACleanup();
         throw Win32Exception("listen", iResult);
     }
     _debug.emplace_back(FormatDebugString("AsyncTcpServer::Start", "Listen socket listening"));
@@ -110,7 +106,6 @@ void AsyncTcpServer::Start()
     {
         iResult = WSAGetLastError();
         closesocket(_listenSocket);
-        WSACleanup();
         throw Win32Exception("WSACreateEvent", iResult);
     }
     _debug.emplace_back(FormatDebugString("AsyncTcpServer::Start", "Listen socket event created"));
@@ -120,7 +115,6 @@ void AsyncTcpServer::Start()
     {
         iResult = WSAGetLastError();
         closesocket(_listenSocket);
-        WSACleanup();
         throw Win32Exception("WSAEventSelect", iResult);
     }
     _debug.emplace_back(FormatDebugString("AsyncTcpServer::Start", "Listen socket event selected"));
