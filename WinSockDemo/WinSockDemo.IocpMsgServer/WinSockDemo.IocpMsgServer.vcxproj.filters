@@ -27,6 +27,15 @@
     <ClInclude Include="..\WinSockDemo.Common\Utilities.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\WinSockDemo.Common\Message.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\WinSockDemo.Common\NetworkException.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\WinSockDemo.Common\Win32Exception.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="IocpTcpServer.cpp">
@@ -36,6 +45,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\WinSockDemo.Common\Utilities.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\WinSockDemo.Common\Message.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

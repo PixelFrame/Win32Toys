@@ -13,6 +13,16 @@ public:
     void Start();
     void Stop();
 
+    void PrintMessages(std::ostream& os);
+    void ClearMessages();
+    void PrintDebug(std::ostream& os);
+    void ClearDebug();
+
+    bool isRunning() const;
+    string listenAddress() const;
+    string threadsInfo() const;
+    int connectionCount() const;
+
 private:
     CRITICAL_SECTION _csLock;
     const static int _NUM_THREAD = 8;

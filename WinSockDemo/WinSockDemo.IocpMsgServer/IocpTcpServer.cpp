@@ -115,6 +115,8 @@ void IocpTcpServer::Start()
         &_dwAcceptThreadId);
     _debug.emplace_back(FormatDebugString("IocpTcpServer::Start", "Accept thread started"));
     _debug.emplace_back(FormatDebugString("IocpTcpServer::Start", "Server started"));
+
+    _bIsRunning = true;
 }
 
 void IocpTcpServer::Stop()
@@ -183,8 +185,84 @@ void IocpTcpServer::Stop()
     _debug.emplace_back(FormatDebugString("IocpTcpServer::Stop", "Server stopped"));
 }
 
+void IocpTcpServer::PrintMessages(std::ostream& os)
+{
+    if (_messages.size() == 0)
+    {
+        os << "No messages received yet." << std::endl;
+        return;
+    }
+    for (auto& msg : _messages)
+    {
+        os << msg.to_string() << std::endl;
+    }
+}
+
+void IocpTcpServer::PrintDebug(std::ostream& os)
+{
+    for (auto& dbg : _debug)
+    {
+        os << dbg << std::endl;
+    }
+}
+
+void IocpTcpServer::ClearMessages()
+{
+    _messages.clear();
+}
+
+void IocpTcpServer::ClearDebug()
+{
+    _debug.clear();
+}
+
+bool IocpTcpServer::isRunning() const
+{
+    return _bIsRunning;
+}
+
+string IocpTcpServer::listenAddress() const
+{
+    if (!_bIsRunning) return string("Server not running");
+
+    SOCKADDR_IN serverAddr = { 0 };
+    char serverAddrStr[INET_ADDRSTRLEN] = { 0 };
+    int serverAddrLen = sizeof(serverAddr);
+    getsockname(_listenSocket, (sockaddr*)&serverAddr, &serverAddrLen);
+    inet_ntop(serverAddr.sin_family, &(serverAddr.sin_addr), serverAddrStr, INET_ADDRSTRLEN);
+    unsigned short port = ntohs(serverAddr.sin_port);
+    sprintf_s(serverAddrStr, INET_ADDRSTRLEN, "%s:%d", serverAddrStr, port);
+    return string(serverAddrStr);
+}
+
+string IocpTcpServer::threadsInfo() const
+{
+    if (!_bIsRunning) return "Server not running";
+
+    string res = format("Accept thread: ID {} | Handle {}\n", _dwAcceptThreadId, _hAcceptThread);
+    res += "Worker threads:\n";
+    for (int i = 0; i < _NUM_THREAD; ++i)
+    {
+        res += format("    ID {}\t| Handle {}\n", _dwWorkerThreadIds[i], _hWorkerThreads[i]);
+    }
+    return res;
+}
+
+int IocpTcpServer::connectionCount() const
+{
+    int count = 0;
+    PER_SOCKET_CONTEXT* it = _contextList;
+    while (it != nullptr)
+    {
+        count++;
+        it = it->pCtxtBack;
+    }
+    return count;
+}
+
 void IocpTcpServer::_AcceptThread()
 {
+    _debug.emplace_back(FormatDebugString("IocpTcpServer::_AcceptThread", "Accept thread start"));
     while (!_bStopServer)
     {
         DWORD dwRecvBytes = 0;
@@ -194,6 +272,7 @@ void IocpTcpServer::_AcceptThread()
         if (INVALID_SOCKET == clientSocket) continue;
 
         PER_SOCKET_CONTEXT* pSocketContext = UpdateCompletionPort(clientSocket, IO_OPERATION::ClientIoRead, TRUE);
+        _debug.emplace_back(FormatDebugString("IocpTcpServer::_AcceptThread", "Updated IOCP for new client"));
         if (pSocketContext == nullptr)
         {
             shutdown(clientSocket, SD_BOTH);
@@ -219,9 +298,9 @@ void IocpTcpServer::_WorkerThread()
 {
     BOOL bSuccess = FALSE;
     int nRet = 0;
-    LPWSAOVERLAPPED lpOverlapped = NULL;
-    PER_SOCKET_CONTEXT* lpPerSocketContext = NULL;
-    PER_IO_CONTEXT* lpIOContext = NULL;
+    WSAOVERLAPPED* lpOverlapped = nullptr;
+    PER_SOCKET_CONTEXT* lpPerSocketContext = nullptr;
+    PER_IO_CONTEXT* lpIOContext = nullptr;
     WSABUF buffRecv{};
     WSABUF buffSend{};
     DWORD dwRecvNumBytes = 0;
@@ -229,9 +308,13 @@ void IocpTcpServer::_WorkerThread()
     DWORD dwFlags = 0;
     DWORD dwIoSize = 0;
 
+    SOCKADDR_IN clientAddr{};
+    char clientAddrStr[INET_ADDRSTRLEN]{};
+    int clientAddrLen = sizeof(clientAddr);
+    unsigned short clientPort = 0;
+
     while (TRUE) 
     {
-
         //
         // continually loop to service io completion packets
         //
@@ -282,6 +365,13 @@ void IocpTcpServer::_WorkerThread()
             // a read operation has completed, post a write operation to echo the
             // data back to the client using the same data buffer.
             //
+
+            getpeername(lpPerSocketContext->Socket, (sockaddr*)&clientAddr, &clientAddrLen);
+            inet_ntop(clientAddr.sin_family, &(clientAddr.sin_addr), clientAddrStr, INET_ADDRSTRLEN);
+            clientPort = ntohs(clientAddr.sin_port);
+            sprintf_s(clientAddrStr, INET_ADDRSTRLEN, "%s:%d", clientAddrStr, clientPort);
+            _messages.emplace_back(Message(string(lpIOContext->Buffer, dwIoSize), clientAddrStr));
+
             lpIOContext->IOOperation = IO_OPERATION::ClientIoWrite;
             lpIOContext->nTotalBytes = 3;
             lpIOContext->nSentBytes = 0;
@@ -291,7 +381,7 @@ void IocpTcpServer::_WorkerThread()
             lpIOContext->wsabuf.len = 3;
             dwFlags = 0;
             nRet = WSASend(lpPerSocketContext->Socket, &lpIOContext->wsabuf, 1,
-                &dwSendNumBytes, dwFlags, &(lpIOContext->Overlapped), NULL);
+                &dwSendNumBytes, dwFlags, &(lpIOContext->Overlapped), nullptr);
             if (nRet == SOCKET_ERROR && (ERROR_IO_PENDING != WSAGetLastError()))
             {
                 CloseClient(lpPerSocketContext, FALSE);
@@ -314,7 +404,7 @@ void IocpTcpServer::_WorkerThread()
                 buffSend.buf = lpIOContext->Buffer + lpIOContext->nSentBytes;
                 buffSend.len = lpIOContext->nTotalBytes - lpIOContext->nSentBytes;
                 nRet = WSASend(lpPerSocketContext->Socket, &buffSend, 1,
-                    &dwSendNumBytes, dwFlags, &(lpIOContext->Overlapped), NULL);
+                    &dwSendNumBytes, dwFlags, &(lpIOContext->Overlapped), nullptr);
                 if (nRet == SOCKET_ERROR && (ERROR_IO_PENDING != WSAGetLastError())) {
                     CloseClient(lpPerSocketContext, FALSE);
                 }
@@ -330,7 +420,7 @@ void IocpTcpServer::_WorkerThread()
                 buffRecv.buf = lpIOContext->Buffer,
                     buffRecv.len = MAX_BUFF_SIZE;
                 nRet = WSARecv(lpPerSocketContext->Socket, &buffRecv, 1,
-                    &dwRecvNumBytes, &dwFlags, &lpIOContext->Overlapped, NULL);
+                    &dwRecvNumBytes, &dwFlags, &lpIOContext->Overlapped, nullptr);
                 if (nRet == SOCKET_ERROR && (ERROR_IO_PENDING != WSAGetLastError()))
                 {
                     CloseClient(lpPerSocketContext, FALSE);
