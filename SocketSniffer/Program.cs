@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.IO;
 using System.Threading;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 
 namespace SocketSniffer
 {
@@ -21,28 +22,91 @@ namespace SocketSniffer
         private static int FailedPacketCounter = 0;
         private static readonly ConcurrentQueue<Packet> PacketBuffer = new();
 
+        private static readonly IEnumerable<IPAddress> AvailableAddrs = NetInterface.GetAddrs();
         private static IPAddress BindAddr;
+        private static FileStream OutputFileStream;
         private static StreamWriter OutputFileStreamWriter;
         private static Task WriteTask;
         private static Timer PrintTimer;
 
-        private const string USAGE_MSG = "SocketSniffer.exe <BindingAddress> <OutputFile>";
+        private const string USAGE_MSG = "SocketSniffer.exe [-i <BindingAddress>] [-o <OutputFile>]";
+
+        private static bool ProcessArgs(string[] args)
+        {
+            try
+            {
+                switch (args.Length)
+                {
+                    case 0:
+                        SetDefaultArgs();
+                        break;
+                    case 2:
+                        SetDefaultArgs();
+                        ProcessSubArgs(args[0], args[1]);
+                        break;
+                    case 4:
+                        ProcessSubArgs(args[0], args[1]);
+                        ProcessSubArgs(args[2], args[3]);
+                        break;
+                    default:
+                        Console.WriteLine(USAGE_MSG);
+                        return false;
+                }
+                if (BindAddr == null)
+                {
+                    Console.WriteLine("Invalid IP address or no IP address available");
+                    Console.WriteLine("Available addresses:");
+                    foreach (var addr in AvailableAddrs)
+                    {
+                        Console.WriteLine($"    {addr}");
+                    }
+                    return false;
+                }
+            }
+            catch (ArgumentException e)
+            {
+                Console.WriteLine($"Invalid Argument: {e.Message}");
+                return false;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+                return false;
+            }
+            return true;
+        }
+
+        private static void ProcessSubArgs(string key, string value)
+        {
+            switch (key)
+            {
+                case "-i":
+                    BindAddr = AvailableAddrs.Where(a => a.ToString() == value).FirstOrDefault();
+                    break;
+                case "-o":
+                    OutputFileStream = new(value, FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read);
+                    OutputFileStreamWriter = new(OutputFileStream);
+                    break;
+                default:
+                    throw new ArgumentException(key);
+            }
+        }
+
+        private static void SetDefaultArgs()
+        {
+            OutputFileStream ??= new(".\\sockdump.txt", FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read);
+            OutputFileStreamWriter = new(OutputFileStream);
+            // Although IPv6 capture appears to be working, it's not receiving valid data, so default is still IPv4 address
+            BindAddr ??= AvailableAddrs.Where(a => a.AddressFamily == AddressFamily.InterNetwork).FirstOrDefault();
+        }
 
         static void Main(string[] args)
         {
-            if (args.Length != 2)
+            if (!ProcessArgs(args))
             {
-                Console.WriteLine(USAGE_MSG);
-                return;
+                CleanUp();
+                Environment.Exit(87);
             }
-            if (!IPAddress.TryParse(args[0], out BindAddr))
-            {
-                Console.WriteLine("Invalid address");
-                Console.WriteLine(USAGE_MSG);
-                return;
-            }
-
-            OutputFileStreamWriter = new StreamWriter(args[1]);
 
             InitSocket();
             PrintTimer = new(PrintCounter, null, 1000, 1000);
@@ -70,20 +134,27 @@ namespace SocketSniffer
             MainSocket.Close();
             OutputFileStreamWriter.WriteLine();
             OutputFileStreamWriter.Close();
+            OutputFileStream.Close();
+            CleanUp();
+        }
 
-            PrintTimer.Dispose();
-            MainSocket.Dispose();
-            OutputFileStreamWriter.Dispose();
+        private static void CleanUp()
+        {
+            PrintTimer?.Dispose();
+            MainSocket?.Dispose();
+            OutputFileStreamWriter?.Dispose();
+            OutputFileStream?.Dispose();
         }
 
         private static void InitSocket()
         {
-            MainSocket = new Socket(AddressFamily.InterNetwork,
+            Console.WriteLine($"Binding address {BindAddr}");
+            MainSocket = new Socket(BindAddr.AddressFamily,
                                             SocketType.Raw, ProtocolType.IP);
             //Bind the socket to the selected IP address.
             MainSocket.Bind(new IPEndPoint(BindAddr, 0));
             //Set the socket options.
-            MainSocket.SetSocketOption(SocketOptionLevel.IP,
+            MainSocket.SetSocketOption(BindAddr.AddressFamily == AddressFamily.InterNetwork ? SocketOptionLevel.IP : SocketOptionLevel.IPv6,
                                        SocketOptionName.HeaderIncluded, true);
             byte[] byTrue = [1, 0, 0, 0];
             // Capture outgoing packets.
@@ -150,10 +221,17 @@ namespace SocketSniffer
             }
         }
 
+        private static int LastPrintLen = 0;
         private static void PrintCounter(object state)
         {
-            Console.Write("\rCaptured {0} packets, saved {1} packets, pending {2} packets, unable to save {3} packets                             ",
-                PacketCounter, PacketCounter - PacketBuffer.Count, PacketBuffer.Count, FailedPacketCounter);
+            var lineMax = Console.BufferWidth;
+            var lineBack = LastPrintLen / (lineMax + 1);
+            var message = string.Format("Captured {0} packets, saved {1} packets, pending {2} packets, unable to save {3} packets",
+                PacketCounter, PacketCounter - PacketBuffer.Count, PacketBuffer.Count, FailedPacketCounter)
+                .PadRight(lineMax * (lineBack + 1));
+            LastPrintLen = message.Length;
+            Console.SetCursorPosition(0, Console.CursorTop - lineBack);
+            Console.Write(message);
         }
     }
 }
