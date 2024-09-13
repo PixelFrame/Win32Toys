@@ -78,7 +78,7 @@ int wmain(int argc, WCHAR** args)
             wprintf(L"State: Created\n");
             break;
         case DODownloadState_Transferring:
-            wprintf(L"State: Transferring ");
+            wprintf(L"State: Transferring | ");
             wprintf(L"Progress: %llu/%llu\n", doStatus.BytesTransferred, doStatus.BytesTotal);
             break;
         case DODownloadState_Transferred:
@@ -86,6 +86,8 @@ int wmain(int argc, WCHAR** args)
             goto Finialize;
         default:
             wprintf(L"Unexpected State: %d\n", doStatus.State);
+            wprintf(L"Error: 0x%x\n", doStatus.Error);
+            wprintf(L"Extended Error: 0x%x\n", doStatus.ExtendedError);
             goto Cleanup;
         }
         Sleep(1000);
