@@ -15,7 +15,7 @@ bool inline CheckHResult(HRESULT hr, LPCWSTR func, bool silent = false)
 
 int wmain(int argc, WCHAR** args)
 {
-    if (argc != 3) return ERROR_INVALID_PARAMETER;
+    if (argc != 3 && argc != 4) return ERROR_INVALID_PARAMETER;
 
     IDOManager* pDoMgr                  = nullptr;
     IDODownload* pDoDnld                = nullptr;
@@ -29,6 +29,7 @@ int wmain(int argc, WCHAR** args)
     VARIANT varPath                     = {};
     VARIANT varDisplayName              = {};
     VARIANT varForegroundPriority       = {};
+    VARIANT varNetworkToken             = {};
 
     varUri.vt = VT_BSTR;
     varUri.bstrVal = bsUri;
@@ -38,7 +39,9 @@ int wmain(int argc, WCHAR** args)
     varDisplayName.bstrVal = bsDisplayName;
     varForegroundPriority.vt = VT_BOOL;
     varForegroundPriority.boolVal = VARIANT_TRUE;
-
+    varNetworkToken.vt = VT_BOOL;
+    varNetworkToken.boolVal = (argc == 4) ? VARIANT_TRUE : VARIANT_FALSE;
+    
     HRESULT hr = S_OK;
     hr = CoInitializeEx(NULL, COINIT_MULTITHREADED);
     if (!CheckHResult(hr, L"CoInitializeEx")) goto Cleanup;
@@ -64,6 +67,8 @@ int wmain(int argc, WCHAR** args)
     if (!CheckHResult(hr, L"IDODownload->SetProperty DODownloadProperty_ForegroundPriority")) goto Cleanup;
     hr = pDoDnld->SetProperty(DODownloadProperty_LocalPath, &varPath);
     if (!CheckHResult(hr, L"IDODownload->SetProperty DODownloadProperty_LocalPath")) goto Cleanup;
+    hr = pDoDnld->SetProperty(DODownloadProperty_NetworkToken, &varNetworkToken);
+    if (!CheckHResult(hr, L"IDODownload->SetProperty DODownloadProperty_NetworkToken")) goto Cleanup;
 
     hr = pDoDnld->Start(&doRangeInfo);
     if (!CheckHResult(hr, L"IDODownload->Start")) goto Cleanup;
