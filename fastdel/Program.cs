@@ -8,14 +8,47 @@ namespace fastdel
 {
     internal class Program
     {
+        const string HELP_MSG =
+@"fastdel -d <value> [-v]
+fastdel -f <value> [-v]
+fastdel -l <value> [-v]
+
+    -d Directory
+    -f Text file containing the file list to be deleted
+    -l Comma splitted file list to be deleted
+    -v Verbose logging
+";
+        static int Mode = 0;
         static bool Logging = false;
         static void Main(string[] args)
         {
-            DateTime start = DateTime.Now;
-            if (args.Length == 0 || args.Length > 2) { Environment.Exit(87); }
-            if (args.Length == 2 && args[1] == "-l") Logging = true;
+            if (args.Length < 2 || args.Length > 3) { Console.Write(HELP_MSG); Environment.Exit(87); }
+            if (args[0] == "-d") Mode = 1;
+            if (args[0] == "-f") Mode = 2;
+            if (args[0] == "-l") Mode = 3;
+            if (Mode == 0) { Console.Write(HELP_MSG); Environment.Exit(87); }
+            if (args.Length == 3 && args[2] == "-v") Logging = true;
 
-            var files = Directory.EnumerateFiles(args[0]);
+            IEnumerable<string> files = Array.Empty<string>();
+            switch(Mode)
+            {
+                case 1:
+                    files = Directory.EnumerateFiles(args[1]); break;
+                case 2:
+                    files = File.ReadAllLines(args[1]); break;
+                case 3:
+                    files = args[1].Split(','); break;
+            }
+            FastDeleteFiles(files);
+#if DEBUG
+            Console.ReadKey();
+#endif
+        }
+
+        static void FastDeleteFiles(IEnumerable<string> files)
+        {
+            var start = DateTime.Now;
+
             var tasks = new List<Task>();
             foreach (var file in files)
             {
@@ -23,17 +56,14 @@ namespace fastdel
             }
             Task.WaitAll(tasks.ToArray());
 
-            DateTime end = DateTime.Now;
+            var end = DateTime.Now;
             Console.WriteLine($"Done, time spent {end - start}");
-#if DEBUG
-            Console.ReadKey();
-#endif
         }
 
         // Delete the file by setting FILE_FLAG_DELETE_ON_CLOSE at CreateFile
         static void FastDelete(string path)
         {
-            DateTime start = DateTime.Now;
+            var start = DateTime.Now;
             var hFile = PInvoke.CreateFile(path, 
                 0x40000000, // GENERIC_WRITE
                 0,          // Non-sharing
@@ -44,7 +74,7 @@ namespace fastdel
             if (hFile.ToInt32() != -1)
             {
                 PInvoke.CloseHandle(hFile);
-                DateTime end = DateTime.Now;
+                var end = DateTime.Now;
                 if (Logging)
                 {
                     Console.WriteLine($"{path}, {end - start}");
