@@ -25,6 +25,9 @@ namespace fastdel
 
             DateTime end = DateTime.Now;
             Console.WriteLine($"Done, time spent {end - start}");
+#if DEBUG
+            Console.ReadKey();
+#endif
         }
 
         // Delete the file by setting FILE_FLAG_DELETE_ON_CLOSE at CreateFile
@@ -38,7 +41,7 @@ namespace fastdel
                 3,          // OPEN_EXISTING
                 0x04000000, // FILE_FLAG_DELETE_ON_CLOSE
                 IntPtr.Zero);
-            if (hFile != IntPtr.Zero)
+            if (hFile.ToInt32() != -1)
             {
                 PInvoke.CloseHandle(hFile);
                 DateTime end = DateTime.Now;
