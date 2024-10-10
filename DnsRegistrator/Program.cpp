@@ -1,4 +1,5 @@
 #define SECURITY_WIN32
+#define UMDF_USING_NTSTATUS
 
 #include <windows.h>
 #include <windns.h>
@@ -243,16 +244,16 @@ int __cdecl wmain(int argc, wchar_t** argv)
     {
         pCredentials = (PSEC_WINNT_AUTH_IDENTITY_W)LocalAlloc(LPTR, sizeof(SEC_WINNT_AUTH_IDENTITY_W));
         pCredentials->User = (unsigned short*)wName;
-        pCredentials->UserLength = wcslen(wName);
+        pCredentials->UserLength = (DWORD)wcslen(wName);
         if (NULL != wPassword)
         {
             pCredentials->Password = (unsigned short*)wPassword;
-            pCredentials->PasswordLength = wcslen(wPassword);
+            pCredentials->PasswordLength = (DWORD)wcslen(wPassword);
         }
         if (NULL != wDomain)
         {
             pCredentials->Domain = (unsigned short*)wDomain;
-            pCredentials->DomainLength = wcslen(wDomain);
+            pCredentials->DomainLength = (DWORD)wcslen(wDomain);
         }
         pCredentials->Flags = SEC_WINNT_AUTH_IDENTITY_UNICODE;
 
@@ -266,7 +267,7 @@ int __cdecl wmain(int argc, wchar_t** argv)
                 status);
             secHandle = NULL;
         }
-        else if (!secHandle) 
+        else if (!secHandle)
         {
             wprintf(L"DnsAcquireContextHandle returned success but handle is NULL\n");
         }
