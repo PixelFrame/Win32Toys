@@ -36,7 +36,7 @@ void CharStrToWCharStr(_In_ const CHAR* c, _Out_ WCHAR* outwstr)
     }
 }
 
-BOOL GetAdapterGuid(_In_ const CHAR* pszAdapterName, _Out_ CHAR* pszAdapterGuid)
+BOOL GetAdapterGuid(_In_ const CHAR* pszAdapterName, _Out_writes_all_(40) CHAR* pszAdapterGuid)
 {
     DWORD                 dwFamily = AF_INET;
     DWORD                 dwFlags = GAA_FLAG_INCLUDE_ALL_INTERFACES | GAA_FLAG_INCLUDE_ALL_COMPARTMENTS;
@@ -46,7 +46,7 @@ BOOL GetAdapterGuid(_In_ const CHAR* pszAdapterName, _Out_ CHAR* pszAdapterGuid)
     DWORD                 dwIterations = 0;
     DWORD                 dwRetVal;
     WCHAR                 pwszAdapterName[50]{};
-
+    ZeroMemory(pszAdapterGuid, 40);
     CharStrToWCharStr(pszAdapterName, pwszAdapterName);
 
     do
@@ -207,6 +207,10 @@ int main(int argc, char** argv)
     {
         std::cout << "Cannot find DHCPv4 enabled adapter with name " << pszAdapterName << std::endl;
         exit(ERROR_NOT_FOUND);
+    }
+    else
+    {
+        std::cout << "Adapter GUID is " << pszAdapterGuid << std::endl;
     }
     CharStrToWCharStr(pszAdapterGuid, pwszAdapterGuid);
 
