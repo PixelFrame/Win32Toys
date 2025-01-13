@@ -84,6 +84,24 @@ void RemoveDosDevice(LPCWSTR lpDevice, LPCWSTR lpTarget, BOOL raw)
     }
 }
 
+void RemoveSingleDosDevices(LPCWSTR lpDevice)
+{
+    DWORD buffLen = 65536;
+    WCHAR* buff = new WCHAR[buffLen];
+
+    DWORD rtLen = QueryDosDeviceW(lpDevice, buff, buffLen);
+
+    if (rtLen == 0)
+    {
+        std::wcout << L"QueryDosDeviceW for device " << lpDevice << L" failed with 0x" << std::hex << GetLastError() << std::endl;
+    }
+    else
+    {
+        RemoveDosDevice(lpDevice, buff, TRUE);
+    }
+    delete[] buff;
+}
+
 void RemoveAllDosDevices(LPCWSTR lpDevice)
 {
     DWORD buffLen = 65536;
@@ -112,13 +130,14 @@ void RemoveAllDosDevices(LPCWSTR lpDevice)
     delete[] buff;
 }
 
-const WCHAR* USAGE = L"ddev <-a|-d> [-r] <device> <target>\n"
-                     L"ddev -da <device>\n"
-                     L"ddev -q [device]";
+const WCHAR* USAGE = L"Add/Delete: ddev <-a|-d> [-r] <device> <target>\n"
+                     L"Delete All: ddev -da <device>\n"
+                     L"Delete Top: ddev -dt <device>\n"
+                     L"Query:      ddev -q [device]";
 
 int wmain(int argc, WCHAR** argv)
 {
-    if (argc < 2)
+    if (argc < 2 || argc > 5)
     {
         goto PRINT_USAGE;
     }
@@ -139,6 +158,10 @@ int wmain(int argc, WCHAR** argv)
         else if (wcscmp(argv[1], L"-da") == 0)
         {
             RemoveAllDosDevices(argv[2]);
+        }
+        else if (wcscmp(argv[1], L"-dt") == 0)
+        {
+            RemoveSingleDosDevices(argv[2]);
         }
         else goto PRINT_USAGE;
     }
