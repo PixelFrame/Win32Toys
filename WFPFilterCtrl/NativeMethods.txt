@@ -1,0 +1,4 @@
+Windows.Win32.NetworkManagement.WindowsFilteringPlatform
+Windows.Win32.Security.Authorization
+LocalFree
+RPC_C_AUTHN_WINNT
