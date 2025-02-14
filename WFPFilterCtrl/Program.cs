@@ -2,9 +2,11 @@
 using Microsoft.Windows.SDK.Win32Docs;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Windows.Win32;
 using Windows.Win32.Foundation;
@@ -16,36 +18,58 @@ namespace WFPFilterCtrl
     internal class Program
     {
         const string USAGE = """
-            WFPFilterCtrl.exe list [-v]
-            WFPFilterCtrl.exe query <filterId>
-            WFPFilterCtrl.exe remove <filterId>
-            WFPFilterCtrl.exe add -n <name> [-d <description>] -l <layer> -a <action> [-w <weight>] [-c <field> <match> <value>]
-                              action only supports 'block' or 'permit'
-                              multiple conditions can be added with -c
-                              layer and field can be GUID or symbolic name
+            WFPFilterCtrl.exe list   [-v]           // List all filters, -v for verbose
+
+            WFPFilterCtrl.exe guid   -l             // Print all layer GUIDs
+                              guid   -s             // Print all built-in sublayer GUIDs
+                              guid   -c             // Print all built-in callout GUIDs
+                              guid   -f             // Print all condition field GUIDs
+
+            WFPFilterCtrl.exe query  -i <filterId>  // Query filter by ID
+                                     -k <filterKey> // Query filter by key
+                                     -n <name>      // Search for filters with name containing <name>
+                                     -m <regex>     // Search for filters with name matching <regex>
+                                     -l <layer>     // Search for filters in layer <layer>
+
+            WFPFilterCtrl.exe remove -i <filterId>  // Remove filter by ID
+                                     -k <filterKey> // Remove filter by key
+
+            WFPFilterCtrl.exe add    -n <name> [-d <description>] -l <layer> -a <action> [-w <weight>] [-c <field> <match> <value>]
+                                                    // action only supports 'block' or 'permit'
+                                                    // multiple conditions can be added with -c
+                                                    // layer and field can be GUID or symbolic name
             """;
 
         static unsafe void Main(string[] args)
         {
             uint dwRet;
-            HANDLE engineHandle;
-
-            Helper.GenerateTables();
-
-            dwRet = PInvoke.FwpmEngineOpen0(null, PInvoke.RPC_C_AUTHN_WINNT, null, null, &engineHandle);
-            if (dwRet != 0)
+            HANDLE engineHandle = HANDLE.Null;
+            try
             {
-                Console.WriteLine($"FwpmEngineOpen0 failed with error code: 0x{dwRet:X8}");
-                return;
+                Helper.GenerateTables();
+
+                dwRet = PInvoke.FwpmEngineOpen0(null, PInvoke.RPC_C_AUTHN_WINNT, null, null, &engineHandle);
+                if (dwRet != 0)
+                {
+                    throw new Win32Exception((int)dwRet, "FwpmEngineOpen0");
+                }
+                ParseArgs(args, engineHandle);
             }
-
-            ParseArgs(args, engineHandle);
-
-            dwRet = PInvoke.FwpmEngineClose0(engineHandle);
-            if (dwRet != 0)
+            catch (Win32Exception e)
             {
-                Console.WriteLine($"FwpmEngineClose0 failed with error code: 0x{dwRet:X8}");
-                return;
+                Console.WriteLine($"{e.Message} failed with error code: 0x{e.NativeErrorCode:X8}");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
+            finally
+            {
+                if (engineHandle != HANDLE.Null)
+                {
+                    // Actually unnecessary to close the session manually according to the documentation
+                    PInvoke.FwpmEngineClose0(engineHandle);
+                }
             }
         }
 
@@ -68,21 +92,77 @@ namespace WFPFilterCtrl
                         PrintFilters(engineHandle);
                     }
                     break;
-                case "query":
+                case "guid":
                     if (args.Length != 2)
                     {
                         Console.WriteLine(USAGE);
                         return;
                     }
-                    QueryFilterById(engineHandle, ulong.Parse(args[1]));
+                    switch (args[1])
+                    {
+                        case "-l":
+                            Helper.PrintTable(1);
+                            break;
+                        case "-s":
+                            Helper.PrintTable(2);
+                            break;
+                        case "-c":
+                            Helper.PrintTable(3);
+                            break;
+                        case "-f":
+                            Helper.PrintTable(0);
+                            break;
+                        default:
+                            Console.WriteLine(USAGE);
+                            break;
+                    }
+                    break;
+                case "query":
+                    if (args.Length != 3)
+                    {
+                        Console.WriteLine(USAGE);
+                        return;
+                    }
+                    switch (args[1])
+                    {
+                        case "-i":
+                            QueryFilterById(engineHandle, ulong.Parse(args[2]));
+                            break;
+                        case "-k":
+                            QueryFilterByKey(engineHandle, Guid.Parse(args[2]));
+                            break;
+                        case "-n":
+                            QueryFilterByName(engineHandle, args[2], false);
+                            break;
+                        case "-m":
+                            QueryFilterByName(engineHandle, args[2], true);
+                            break;
+                        case "-l":
+                            QueryFilterByLayer(engineHandle, args[2]);
+                            break;
+                        default:
+                            Console.WriteLine(USAGE);
+                            break;
+                    }
                     break;
                 case "remove":
-                    if (args.Length != 2)
+                    if (args.Length != 3)
                     {
                         Console.WriteLine(USAGE);
                         return;
                     }
-                    RemoveFilterById(engineHandle, ulong.Parse(args[1]));
+                    switch (args[1])
+                    {
+                        case "-i":
+                            RemoveFilterById(engineHandle, ulong.Parse(args[2]));
+                            break;
+                        case "-k":
+                            RemoveFilterByKey(engineHandle, Guid.Parse(args[2]));
+                            break;
+                        default:
+                            Console.WriteLine(USAGE);
+                            break;
+                    }
                     break;
                 case "add":
                     ProcessAddArgs(args, engineHandle);
@@ -136,27 +216,38 @@ namespace WFPFilterCtrl
             AddFilter(engineHandle, name, description, layer, action, conditions, weight);
         }
 
-        static unsafe void PrintFilters(HANDLE engineHandle, bool verbose = false)
+        static unsafe FWPM_FILTER0** EnumFilters(HANDLE engineHandle, uint* numEntriesReturned)
         {
             uint dwRet;
             HANDLE enumHandle;
             FWPM_FILTER0** filters = null;
-            uint numEntriesReturned;
 
             dwRet = PInvoke.FwpmFilterCreateEnumHandle0(engineHandle, null, &enumHandle);
             if (dwRet != 0)
             {
-                Console.WriteLine($"FwpmFilterCreateEnumHandle0 failed with error code: 0x{dwRet:X8}");
-                return;
+                throw new Win32Exception((int)dwRet, "FwpmFilterCreateEnumHandle0");
             }
 
-            dwRet = PInvoke.FwpmFilterEnum0(engineHandle, enumHandle, uint.MaxValue, &filters, &numEntriesReturned);
+            dwRet = PInvoke.FwpmFilterEnum0(engineHandle, enumHandle, uint.MaxValue, &filters, numEntriesReturned);
             if (dwRet != 0)
             {
                 PInvoke.FwpmFilterDestroyEnumHandle0(engineHandle, enumHandle);
-                Console.WriteLine($"FwpmFilterEnum0 failed with error code: 0x{dwRet:X8}");
-                return;
+                throw new Win32Exception((int)dwRet, "FwpmFilterEnum0");
             }
+
+            PInvoke.FwpmFilterDestroyEnumHandle0(engineHandle, enumHandle);
+            return filters;
+        }
+
+        static unsafe void FreeFilters(FWPM_FILTER0** filters)
+        {
+            PInvoke.FwpmFreeMemory0((void**)&filters);
+        }
+
+        static unsafe void PrintFilters(HANDLE engineHandle, bool verbose = false)
+        {
+            uint numEntriesReturned;
+            FWPM_FILTER0** filters = EnumFilters(engineHandle, &numEntriesReturned);
 
             for (uint i = 0; i < numEntriesReturned; i++)
             {
@@ -170,8 +261,8 @@ namespace WFPFilterCtrl
                     Console.WriteLine($"{filters[i]->filterId,-6} {filters[i]->filterKey} {filters[i]->action.type,-30} {filters[i]->displayData.name} ");
                 }
             }
-            PInvoke.FwpmFreeMemory0((void**)&filters);
-            PInvoke.FwpmFilterDestroyEnumHandle0(engineHandle, enumHandle);
+
+            FreeFilters(filters);
         }
 
         static unsafe void PrintFilterVerbose(FWPM_FILTER0* filter)
@@ -206,11 +297,58 @@ namespace WFPFilterCtrl
             uint dwRet = PInvoke.FwpmFilterGetById0(engineHandle, id, &filter);
             if (dwRet != 0)
             {
-                Console.WriteLine($"FwpmFilterGetById0 failed with error code: 0x{dwRet:X8}");
-                return;
+                throw new Win32Exception((int)dwRet, "FwpmFilterGetById0");
             }
 
             PrintFilterVerbose(filter);
+        }
+
+        static unsafe void QueryFilterByKey(HANDLE engineHandle, Guid key)
+        {
+            FWPM_FILTER0* filter = null;
+            uint dwRet = PInvoke.FwpmFilterGetByKey0(engineHandle, &key, &filter);
+            if (dwRet != 0)
+            {
+                throw new Win32Exception((int)dwRet, "FwpmFilterGetByKey0");
+            }
+            PrintFilterVerbose(filter);
+        }
+
+        static unsafe void QueryFilterByName(HANDLE engineHandle, string name, bool useRegex)
+        {
+            uint numEntriesReturned;
+            FWPM_FILTER0** filters = EnumFilters(engineHandle, &numEntriesReturned);
+
+            for (uint i = 0; i < numEntriesReturned; i++)
+            {
+                if (useRegex && Regex.IsMatch(filters[i]->displayData.name.ToString(), name))
+                {
+                    PrintFilterVerbose(filters[i]);
+                    Console.WriteLine(new string('-', Console.BufferWidth - 1));
+                }
+                else if (filters[i]->displayData.name.ToString().Contains(name))
+                {
+                    PrintFilterVerbose(filters[i]);
+                    Console.WriteLine(new string('-', Console.BufferWidth - 1));
+                }
+            }
+
+            PInvoke.FwpmFreeMemory0((void**)&filters);
+        }
+
+        static unsafe void QueryFilterByLayer(HANDLE engineHandle, string layer)
+        {
+            uint numEntriesReturned;
+            FWPM_FILTER0** filters = EnumFilters(engineHandle, &numEntriesReturned);
+            for (uint i = 0; i < numEntriesReturned; i++)
+            {
+                if (filters[i]->layerKey == Helper.GetLayerGuid(layer))
+                {
+                    PrintFilterVerbose(filters[i]);
+                    Console.WriteLine(new string('-', Console.BufferWidth - 1));
+                }
+            }
+            PInvoke.FwpmFreeMemory0((void**)&filters);
         }
 
         static void RemoveFilterById(HANDLE engineHandle, ulong id)
@@ -218,11 +356,24 @@ namespace WFPFilterCtrl
             var dwRet = PInvoke.FwpmFilterDeleteById0(engineHandle, id);
             if (dwRet != 0)
             {
-                Console.WriteLine($"FwpmFilterDeleteById0 failed with error code: 0x{dwRet:X8}");
+                throw new Win32Exception((int)dwRet, "FwpmFilterDeleteById0");
             }
             else
             {
                 Console.WriteLine($"Filter with ID {id} removed successfully");
+            }
+        }
+
+        static unsafe void RemoveFilterByKey(HANDLE engineHandle, Guid key)
+        {
+            var dwRet = PInvoke.FwpmFilterDeleteByKey0(engineHandle, &key);
+            if (dwRet != 0)
+            {
+                throw new Win32Exception((int)dwRet, "FwpmFilterDeleteById0");
+            }
+            else
+            {
+                Console.WriteLine($"Filter with key {key} removed successfully");
             }
         }
 
@@ -260,17 +411,42 @@ namespace WFPFilterCtrl
                             }
                         },
                     };
-                    // TODO: Parse conditions...
+                    filter.numFilterConditions = (uint)conditions.Count();
+                    filter.filterCondition = (FWPM_FILTER_CONDITION0*)Marshal.AllocHGlobal((int)(filter.numFilterConditions * sizeof(FWPM_FILTER_CONDITION0))).ToPointer();
+
+                    for (int i = 0; i < filter.numFilterConditions; i++)
+                    {
+                        filter.filterCondition[i] = ParseCondition(conditions.ElementAt(i).Item1, conditions.ElementAt(i).Item2, conditions.ElementAt(i).Item3);
+                    }
+
                     var dwRet = PInvoke.FwpmFilterAdd0(engineHandle, &filter, (PSECURITY_DESCRIPTOR)null, &filterId);
+
+                    // Free condition itself and their values
+                    for(int i = 0; i < filter.numFilterConditions; i++)
+                    {
+                        Helper.FreeValue(filter.filterCondition[i].conditionValue);
+                    }
+                    Marshal.FreeHGlobal((IntPtr)filter.filterCondition);
+
                     if (dwRet != 0)
                     {
-                        Console.WriteLine($"FwpmFilterAdd0 failed with error code: 0x{dwRet:X8}");
+                        throw new Win32Exception((int)dwRet, "FwpmFilterAdd0");
                     }
                 }
             }
-            Console.WriteLine($"Filter added successfully");
+            Console.WriteLine("Filter added successfully");
             Console.WriteLine();
             QueryFilterById(engineHandle, filterId);
+        }
+
+        static FWPM_FILTER_CONDITION0 ParseCondition(string field, string match, string value)
+        {
+            return new FWPM_FILTER_CONDITION0
+            {
+                fieldKey = Helper.GetConditionGuid(field),
+                matchType = Helper.ParseMatchType(match),
+                conditionValue = Helper.ParseConditionValue(value)
+            };
         }
     }
 }
