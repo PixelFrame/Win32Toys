@@ -35,9 +35,14 @@ namespace WFPFilterCtrl
                                      -k <filterKey> // Remove filter by key
 
             WFPFilterCtrl.exe add    -n <name> [-d <description>] -l <layer> -a <action> [-w <weight>] [-c <field> <match> <value>]
+                                                    // layer and field can be GUID or symbolic name
                                                     // action only supports 'block' or 'permit'
                                                     // multiple conditions can be added with -c
-                                                    // layer and field can be GUID or symbolic name
+                                                    // condition value format <TYPE>!<VALUE>
+                                                    // number values support DEC and HEX (0x) format, e.g. UINT32!0x1234 or UINT64!1234
+                                                    // binary values should be in BASE64 format, e.g. BYTE_BLOB:bG9yZW0=
+                                                    // security descriptor values should be in SDDL format, e.g. SD!D:(A;;CCRC;;;WD)
+                                                    // token information and token access information are currently not implemented
             """;
 
         static unsafe void Main(string[] args)
@@ -253,7 +258,7 @@ namespace WFPFilterCtrl
             {
                 if (verbose)
                 {
-                    PrintFilterVerbose(filters[i]);
+                    PrintFilterVerbose(filters[i], engineHandle);
                     Console.WriteLine(new string('-', Console.BufferWidth - 1));
                 }
                 else
@@ -265,7 +270,7 @@ namespace WFPFilterCtrl
             FreeFilters(filters);
         }
 
-        static unsafe void PrintFilterVerbose(FWPM_FILTER0* filter)
+        static unsafe void PrintFilterVerbose(FWPM_FILTER0* filter, HANDLE? engineHandle = null)
         {
             Console.WriteLine($"ID:               {filter->filterId}");
             Console.WriteLine($"Key:              {filter->filterKey}");
@@ -277,10 +282,30 @@ namespace WFPFilterCtrl
                 || filter->action.type == FWP_ACTION_TYPE.FWP_ACTION_CALLOUT_INSPECTION)
             {
                 Console.WriteLine($"Callout:          {Helper.TranslateCalloutGuid(filter->action.Anonymous.calloutKey)}");
+                if (engineHandle.HasValue)
+                {
+                    FWPM_CALLOUT0* pCallout;
+                    PInvoke.FwpmCalloutGetByKey0(engineHandle.Value, &filter->action.Anonymous.calloutKey, &pCallout);
+                    Console.WriteLine($"  ID:             {pCallout->calloutId}");
+                    Console.WriteLine($"  Name:           {pCallout->displayData.name}");
+                    Console.WriteLine($"  Description:    {pCallout->displayData.description}");
+                }
             }
             Console.WriteLine($"Layer:            {Helper.TranslateLayerGuid(filter->layerKey)}");
             Console.WriteLine($"SubLayer:         {Helper.TranslateSubLayerGuid(filter->subLayerKey)}");
             Console.WriteLine($"Effective Weight: {Helper.TranslateValue(filter->effectiveWeight)}");
+            if (filter->providerKey != null)
+            {
+                Console.WriteLine($"Provider:         {*filter->providerKey}");
+                if (engineHandle.HasValue)
+                {
+                    FWPM_PROVIDER0* pProvider;
+                    PInvoke.FwpmProviderGetByKey0(engineHandle.Value, filter->providerKey, &pProvider);
+                    Console.WriteLine($"  Name:           {pProvider->displayData.name}");
+                    Console.WriteLine($"  Description:    {pProvider->displayData.description}");
+                    Console.WriteLine($"  Service Name:   {pProvider->serviceName}");
+                }
+            }
             if (filter->numFilterConditions > 0)
             {
                 Console.WriteLine("Conditions:");
@@ -300,7 +325,7 @@ namespace WFPFilterCtrl
                 throw new Win32Exception((int)dwRet, "FwpmFilterGetById0");
             }
 
-            PrintFilterVerbose(filter);
+            PrintFilterVerbose(filter, engineHandle);
         }
 
         static unsafe void QueryFilterByKey(HANDLE engineHandle, Guid key)
@@ -311,7 +336,7 @@ namespace WFPFilterCtrl
             {
                 throw new Win32Exception((int)dwRet, "FwpmFilterGetByKey0");
             }
-            PrintFilterVerbose(filter);
+            PrintFilterVerbose(filter, engineHandle);
         }
 
         static unsafe void QueryFilterByName(HANDLE engineHandle, string name, bool useRegex)
@@ -323,12 +348,12 @@ namespace WFPFilterCtrl
             {
                 if (useRegex && Regex.IsMatch(filters[i]->displayData.name.ToString(), name))
                 {
-                    PrintFilterVerbose(filters[i]);
+                    PrintFilterVerbose(filters[i], engineHandle);
                     Console.WriteLine(new string('-', Console.BufferWidth - 1));
                 }
                 else if (filters[i]->displayData.name.ToString().Contains(name))
                 {
-                    PrintFilterVerbose(filters[i]);
+                    PrintFilterVerbose(filters[i], engineHandle);
                     Console.WriteLine(new string('-', Console.BufferWidth - 1));
                 }
             }
@@ -344,7 +369,7 @@ namespace WFPFilterCtrl
             {
                 if (filters[i]->layerKey == Helper.GetLayerGuid(layer))
                 {
-                    PrintFilterVerbose(filters[i]);
+                    PrintFilterVerbose(filters[i], engineHandle);
                     Console.WriteLine(new string('-', Console.BufferWidth - 1));
                 }
             }
@@ -422,7 +447,7 @@ namespace WFPFilterCtrl
                     var dwRet = PInvoke.FwpmFilterAdd0(engineHandle, &filter, (PSECURITY_DESCRIPTOR)null, &filterId);
 
                     // Free condition itself and their values
-                    for(int i = 0; i < filter.numFilterConditions; i++)
+                    for (int i = 0; i < filter.numFilterConditions; i++)
                     {
                         Helper.FreeValue(filter.filterCondition[i].conditionValue);
                     }

@@ -381,10 +381,8 @@ namespace WFPFilterCtrl
                 case "UNICODE_STRING":
                 case "FWP_UNICODE_STRING_TYPE":
                     res.type = FWP_DATA_TYPE.FWP_UNICODE_STRING_TYPE;
-                    fixed (char* pVal7 = val)
-                    {
-                        res.Anonymous.unicodeString = pVal7;
-                    }
+                    var pVal7 = Marshal.StringToHGlobalUni(val);
+                    res.Anonymous.unicodeString = (char*)pVal7;
                     break;
                 case "BYTE_ARRAY6":
                 case "FWP_BYTE_ARRAY6_TYPE":
@@ -535,10 +533,8 @@ namespace WFPFilterCtrl
                     case "UNICODE_STRING":
                     case "FWP_UNICODE_STRING_TYPE":
                         res.type = FWP_DATA_TYPE.FWP_UNICODE_STRING_TYPE;
-                        fixed (char* pVal7 = val)
-                        {
-                            res.Anonymous.unicodeString = pVal7;
-                        }
+                        var pVal7 = Marshal.StringToHGlobalUni(val);
+                        res.Anonymous.unicodeString = (char*)pVal7;
                         break;
                     case "BYTE_ARRAY6":
                     case "FWP_BYTE_ARRAY6_TYPE":
@@ -595,6 +591,7 @@ namespace WFPFilterCtrl
                 case FWP_DATA_TYPE.FWP_UINT64:
                 case FWP_DATA_TYPE.FWP_INT64:
                 case FWP_DATA_TYPE.FWP_DOUBLE:
+                case FWP_DATA_TYPE.FWP_UNICODE_STRING_TYPE:
                 case FWP_DATA_TYPE.FWP_BYTE_ARRAY16_TYPE:
                 case FWP_DATA_TYPE.FWP_BYTE_ARRAY6_TYPE:
                 case FWP_DATA_TYPE.FWP_V4_ADDR_MASK:
