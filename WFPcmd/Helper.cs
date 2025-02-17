@@ -2,6 +2,8 @@
 using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
+using System.ComponentModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Runtime.InteropServices;
@@ -11,8 +13,9 @@ using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.NetworkManagement.WindowsFilteringPlatform;
 using Windows.Win32.Security;
+using Windows.Win32.System.Threading;
 
-namespace WFPFilterCtrl
+namespace WFPcmd
 {
     internal class Helper
     {
@@ -143,47 +146,48 @@ namespace WFPFilterCtrl
             return CalloutGuidTable.Contains(guid) ? CalloutGuidTable[guid] : guid.ToString();
         }
 
-        public unsafe static string TranslateValue(FWP_VALUE0 value)
+        public unsafe static string TranslateValue(FWP_VALUE0 value, bool withType = false)
         {
-            var res = TranslateValue(*(FWP_CONDITION_VALUE0*)&value);
+            var res = TranslateValue(*(FWP_CONDITION_VALUE0*)&value, withType);
             return res;
         }
 
-        public unsafe static string TranslateValue(FWP_CONDITION_VALUE0 value)
+        public unsafe static string TranslateValue(FWP_CONDITION_VALUE0 value, bool withType = false)
         {
+            var typeStr = withType ? $"{value.type.ToString().Substring(4)}!" : "";
             switch (value.type)
             {
                 case FWP_DATA_TYPE.FWP_EMPTY:
-                    return "Empty";
+                    return typeStr + "Empty";
                 case FWP_DATA_TYPE.FWP_UINT8:
-                    return (value.Anonymous.uint8).ToString();
+                    return typeStr + (value.Anonymous.uint8).ToString();
                 case FWP_DATA_TYPE.FWP_UINT16:
-                    return (value.Anonymous.uint16).ToString();
+                    return typeStr + (value.Anonymous.uint16).ToString();
                 case FWP_DATA_TYPE.FWP_UINT32:
-                    return (value.Anonymous.uint32).ToString();
+                    return typeStr + (value.Anonymous.uint32).ToString();
                 case FWP_DATA_TYPE.FWP_UINT64:
-                    return (*value.Anonymous.uint64).ToString();
+                    return typeStr + (*value.Anonymous.uint64).ToString();
                 case FWP_DATA_TYPE.FWP_INT8:
-                    return (value.Anonymous.int8).ToString();
+                    return typeStr + (value.Anonymous.int8).ToString();
                 case FWP_DATA_TYPE.FWP_INT16:
-                    return (value.Anonymous.int16).ToString();
+                    return typeStr + (value.Anonymous.int16).ToString();
                 case FWP_DATA_TYPE.FWP_INT32:
-                    return (value.Anonymous.int32).ToString();
+                    return typeStr + (value.Anonymous.int32).ToString();
                 case FWP_DATA_TYPE.FWP_INT64:
-                    return (*value.Anonymous.int64).ToString();
+                    return typeStr + (*value.Anonymous.int64).ToString();
                 case FWP_DATA_TYPE.FWP_FLOAT:
-                    return (value.Anonymous.float32).ToString();
+                    return typeStr + (value.Anonymous.float32).ToString();
                 case FWP_DATA_TYPE.FWP_DOUBLE:
-                    return (*value.Anonymous.double64).ToString();
+                    return typeStr + (*value.Anonymous.double64).ToString();
                 case FWP_DATA_TYPE.FWP_BYTE_ARRAY16_TYPE:
                     {
                         var arr = (*value.Anonymous.byteArray16).byteArray16;
-                        return $"{arr[0]:X2}{arr[1]:X2}{arr[2]:X2}{arr[3]:X2}{arr[4]:X2}{arr[5]:X2}{arr[6]:X2}{arr[7]:X2}{arr[8]:X2}{arr[9]:X2}{arr[10]:X2}{arr[11]:X2}{arr[12]:X2}{arr[13]:X2}{arr[14]:X2}{arr[15]:X2}";
+                        return typeStr + $"{arr[0]:X2}{arr[1]:X2}{arr[2]:X2}{arr[3]:X2}{arr[4]:X2}{arr[5]:X2}{arr[6]:X2}{arr[7]:X2}{arr[8]:X2}{arr[9]:X2}{arr[10]:X2}{arr[11]:X2}{arr[12]:X2}{arr[13]:X2}{arr[14]:X2}{arr[15]:X2}";
                     }
                 case FWP_DATA_TYPE.FWP_BYTE_BLOB_TYPE:
                     {
                         var blob = *value.Anonymous.byteBlob;
-                        return Encoding.Unicode.GetString(blob.data, (int)blob.size);
+                        return typeStr + Encoding.Unicode.GetString(blob.data, (int)blob.size);
                     }
                 case FWP_DATA_TYPE.FWP_SID:
                     {
@@ -192,7 +196,7 @@ namespace WFPFilterCtrl
                         PInvoke.ConvertSidToStringSid(pSID, &strSid);
                         var res = strSid.ToString();
                         PInvoke.LocalFree(new HLOCAL(strSid));
-                        return res;
+                        return typeStr + res;
                     }
                 case FWP_DATA_TYPE.FWP_SECURITY_DESCRIPTOR_TYPE:
                     {
@@ -206,31 +210,31 @@ namespace WFPFilterCtrl
                             &strSD, &strSDLen);
                         var res = strSD.ToString();
                         PInvoke.LocalFree(new HLOCAL(strSD));
-                        return res;
+                        return typeStr + res;
                     }
                 case FWP_DATA_TYPE.FWP_TOKEN_INFORMATION_TYPE:
                     {
                         var tokenInfo = *value.Anonymous.tokenInformation;
-                        return "Not implemented: FWP_TOKEN_INFORMATION_TYPE";
+                        return typeStr + "Not implemented: FWP_TOKEN_INFORMATION_TYPE";
                     }
                 case FWP_DATA_TYPE.FWP_TOKEN_ACCESS_INFORMATION_TYPE:
                     {
                         var tokenAccessInfo = *value.Anonymous.tokenAccessInformation;
-                        return "Not implemented: FWP_TOKEN_ACCESS_INFORMATION_TYPE";
+                        return typeStr + "Not implemented: FWP_TOKEN_ACCESS_INFORMATION_TYPE";
                     }
                 case FWP_DATA_TYPE.FWP_UNICODE_STRING_TYPE:
-                    return value.Anonymous.unicodeString.ToString();
+                    return typeStr + value.Anonymous.unicodeString.ToString();
                 case FWP_DATA_TYPE.FWP_BYTE_ARRAY6_TYPE:
                     {
                         var arr = (*value.Anonymous.byteArray6).byteArray6;
-                        return $"{arr[0]:X2}{arr[1]:X2}{arr[2]:X2}{arr[3]:X2}{arr[4]:X2}{arr[5]:X2}";
+                        return typeStr + $"{arr[0]:X2}{arr[1]:X2}{arr[2]:X2}{arr[3]:X2}{arr[4]:X2}{arr[5]:X2}";
                     }
                 case FWP_DATA_TYPE.FWP_V4_ADDR_MASK:
                     {
                         var pValue = (FWP_V4_ADDR_AND_MASK*)value.Anonymous.uint64;
                         var addr = new IPAddress(pValue->addr);
                         var mask = new IPAddress(pValue->mask);
-                        return $"{addr}/{mask}";
+                        return typeStr + $"{addr}/{mask}";
                     }
                 case FWP_DATA_TYPE.FWP_V6_ADDR_MASK:
                     {
@@ -238,21 +242,21 @@ namespace WFPFilterCtrl
                         var addrbytes = (new Span<byte>(pValue->addr.Value, 16)).ToArray();
                         var addr = new IPAddress(addrbytes);
                         var maskLen = pValue->prefixLength;
-                        return $"{addr}/{maskLen}";
+                        return typeStr + $"{addr}/{maskLen}";
                     }
                 case FWP_DATA_TYPE.FWP_RANGE_TYPE:
                     {
                         var pValue = (FWP_RANGE0*)value.Anonymous.uint64;
-                        return $"{TranslateValue(pValue->valueLow)}-{TranslateValue(pValue->valueHigh)}";
+                        return typeStr + $"{TranslateValue(pValue->valueLow, withType)}-{TranslateValue(pValue->valueHigh, withType)}";
                     }
                 default:
-                    return "Unknown value";
+                    return typeStr + "Unknown value";
             }
         }
 
         internal static FWP_MATCH_TYPE ParseMatchType(string match)
         {
-            
+
             if (Enum.TryParse<FWP_MATCH_TYPE>(match, true, out var parsed))
             {
                 return parsed;
@@ -401,10 +405,10 @@ namespace WFPFilterCtrl
         internal unsafe static FWP_CONDITION_VALUE0 ParseConditionValue(string value)
         {
             var res = new FWP_CONDITION_VALUE0();
-            if (value.Contains("-"))
+            if (value.Contains('|'))
             {
                 res.type = FWP_DATA_TYPE.FWP_RANGE_TYPE;
-                var parts = value.Split('-');
+                var parts = value.Split('|');
                 var low = ParseValue(parts[0]);
                 var high = ParseValue(parts[1]);
                 var range = new FWP_RANGE0
@@ -419,7 +423,7 @@ namespace WFPFilterCtrl
             else
             {
                 if (!value.Contains("!"))
-                throw new ArgumentException($"Invalid value {value}");
+                    throw new ArgumentException($"Invalid value {value}");
                 var type = value.Substring(0, value.IndexOf('!')).ToUpper();
                 var val = value.Substring(value.IndexOf('!') + 1);
                 switch (type)
@@ -619,6 +623,33 @@ namespace WFPFilterCtrl
                     break;
                 default: break;
             }
+        }
+
+        internal unsafe static void EnableProcessSecurityPrivilege()
+        {
+            HANDLE hSelf = new HANDLE(Process.GetCurrentProcess().Handle);
+            HANDLE hToken = HANDLE.Null;
+
+            if (!PInvoke.OpenProcessToken(hSelf, TOKEN_ACCESS_MASK.TOKEN_ADJUST_PRIVILEGES, &hToken))
+            {
+                throw new Win32Exception(Marshal.GetLastWin32Error(), "OpenProcessToken");
+            }
+            if (!PInvoke.LookupPrivilegeValue(null, "SeSecurityPrivilege", out var lpLuid))
+            {
+                throw new Win32Exception(Marshal.GetLastWin32Error(), "LookupPrivilegeValue");
+            }
+
+            TOKEN_PRIVILEGES tp = new();
+            tp.PrivilegeCount = 1;
+            tp.Privileges[0].Luid = lpLuid;
+            tp.Privileges[0].Attributes = TOKEN_PRIVILEGES_ATTRIBUTES.SE_PRIVILEGE_ENABLED;
+
+            if (!PInvoke.AdjustTokenPrivileges(hToken, false, &tp, (uint)Marshal.SizeOf(tp), null, null))
+            {
+                throw new Win32Exception(Marshal.GetLastWin32Error(), "AdjustTokenPrivileges");
+            }
+            PInvoke.CloseHandle(hToken);
+            PInvoke.CloseHandle(hSelf);
         }
     }
 }

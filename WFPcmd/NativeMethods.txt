@@ -1,4 +1,6 @@
 Windows.Win32.NetworkManagement.WindowsFilteringPlatform
+Windows.Win32.Security
 Windows.Win32.Security.Authorization
+OpenProcessToken
 LocalFree
 RPC_C_AUTHN_WINNT
