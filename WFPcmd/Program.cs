@@ -59,11 +59,13 @@ namespace WFPcmd
             """;
 
         const string USAGE_CALLOUT = """
-            WFPcmd.exe callout list [-v]
+            WFPcmd.exe callout list   [-v]            // List all callouts
 
-            WFPcmd.exe callout query
+            WFPcmd.exe callout query  -k <calloutKey> // Query callout by key
+                                      -n <name>       // Search for callouts with name containing <name>
+                                      -m <regex>      // Search for callouts with name containing <name>
 
-            WFPcmd.exe callout remove
+            WFPcmd.exe callout remove -k <calloutKey> // Remove callout by key
             """;
 
         static unsafe void Main(string[] args)
@@ -115,6 +117,7 @@ namespace WFPcmd
                         case "guid": Console.WriteLine(USAGE_GUID); break;
                         case "layer": Console.WriteLine(USAGE_LAYER); break;
                         case "filter": Console.WriteLine(USAGE_FILTER); break;
+                        case "callout": Console.WriteLine(USAGE_CALLOUT); break;
                     }
                     break;
                 case "filter":
@@ -122,6 +125,9 @@ namespace WFPcmd
                     break;
                 case "layer":
                     ProcessLayerArgs(args.AsSpan().Slice(1).ToArray(), engineHandle);
+                    break;
+                case "callout":
+                    ProcessCalloutArgs(args.AsSpan().Slice(1).ToArray(), engineHandle);
                     break;
                 case "guid":
                     if (args.Length != 2)
@@ -158,10 +164,10 @@ namespace WFPcmd
         {
             if (args.Length == 0)
             {
-                Console.WriteLine(USAGE);
+                Console.WriteLine(USAGE_LAYER);
                 return;
             }
-            switch (args[0])
+            switch (args[0].ToLower())
             {
                 case "list":
                     if (args.Length == 2)
@@ -172,7 +178,7 @@ namespace WFPcmd
                         }
                         else
                         {
-                            Console.WriteLine(USAGE);
+                            Console.WriteLine(USAGE_LAYER);
                         }
                     }
                     else
@@ -183,7 +189,7 @@ namespace WFPcmd
                 case "query":
                     if (args.Length != 3)
                     {
-                        Console.WriteLine(USAGE);
+                        Console.WriteLine(USAGE_LAYER);
                         return;
                     }
                     switch (args[1])
@@ -198,12 +204,82 @@ namespace WFPcmd
                             LayerCtrl.QueryLayerByName(engineHandle, args[2], true);
                             break;
                         default:
-                            Console.WriteLine(USAGE);
+                            Console.WriteLine(USAGE_LAYER);
                             break;
                     }
                     break;
                 default:
-                    Console.WriteLine(USAGE);
+                    Console.WriteLine(USAGE_LAYER);
+                    break;
+            }
+        }
+
+        static void ProcessCalloutArgs(string[] args, HANDLE engineHandle)
+        {
+            if (args.Length == 0)
+            {
+                Console.WriteLine(USAGE_CALLOUT);
+                return;
+            }
+            switch (args[0].ToLower())
+            {
+                case "list":
+                    if (args.Length == 2)
+                    {
+                        if (args[1] == "-v")
+                        {
+                            CalloutCtrl.PrintCallouts(engineHandle, true);
+                        }
+                        else
+                        {
+                            Console.WriteLine(USAGE_CALLOUT);
+                        }
+                    }
+                    else
+                    {
+                        CalloutCtrl.PrintCallouts(engineHandle);
+                    }
+                    break;
+                case "query":
+                    if (args.Length != 3)
+                    {
+                        Console.WriteLine(USAGE_CALLOUT);
+                        return;
+                    }
+                    switch (args[1])
+                    {
+                        case "-k":
+                            CalloutCtrl.QueryCalloutByKey(engineHandle, args[2]);
+                            break;
+                        case "-n":
+                            CalloutCtrl.QueryCalloutByName(engineHandle, args[2], false);
+                            break;
+                        case "-m":
+                            CalloutCtrl.QueryCalloutByName(engineHandle, args[2], true);
+                            break;
+                        default:
+                            Console.WriteLine(USAGE_CALLOUT);
+                            break;
+                    }
+                    break;
+                case "remove":
+                    if (args.Length != 3)
+                    {
+                        Console.WriteLine(USAGE_CALLOUT);
+                        return;
+                    }
+                    switch (args[1])
+                    {
+                        case "-k":
+                            CalloutCtrl.RemoveCalloutByKey(engineHandle, Guid.Parse(args[2]));
+                            break;
+                        default:
+                            Console.WriteLine(USAGE_CALLOUT);
+                            break;
+                    }
+                    break;
+                default:
+                    Console.WriteLine(USAGE_CALLOUT);
                     break;
             }
         }
@@ -212,10 +288,10 @@ namespace WFPcmd
         {
             if (args.Length == 0)
             {
-                Console.WriteLine(USAGE);
+                Console.WriteLine(USAGE_FILTER);
                 return;
             }
-            switch (args[0])
+            switch (args[0].ToLower())
             {
                 case "list":
                     if (args.Length == 2)
@@ -230,7 +306,7 @@ namespace WFPcmd
                         }
                         else
                         {
-                            Console.WriteLine(USAGE);
+                            Console.WriteLine(USAGE_FILTER);
                         }
                     }
                     else
@@ -241,7 +317,7 @@ namespace WFPcmd
                 case "query":
                     if (args.Length != 3)
                     {
-                        Console.WriteLine(USAGE);
+                        Console.WriteLine(USAGE_FILTER);
                         return;
                     }
                     switch (args[1])
@@ -262,14 +338,14 @@ namespace WFPcmd
                             FilterCtrl.QueryFilterByLayer(engineHandle, args[2]);
                             break;
                         default:
-                            Console.WriteLine(USAGE);
+                            Console.WriteLine(USAGE_FILTER);
                             break;
                     }
                     break;
                 case "sdqry":
                     if (args.Length != 3 || args[1] != "-k")
                     {
-                        Console.WriteLine(USAGE);
+                        Console.WriteLine(USAGE_FILTER);
                         return;
                     }
                     FilterCtrl.QueryFilterSdByKey(engineHandle, Guid.Parse(args[2]));
@@ -277,7 +353,7 @@ namespace WFPcmd
                 case "sdset":
                     if (args.Length != 5 || args[1] != "-k" || args[3] != "-v")
                     {
-                        Console.WriteLine(USAGE);
+                        Console.WriteLine(USAGE_FILTER);
                         return;
                     }
                     FilterCtrl.SetFilterSdByKey(engineHandle, Guid.Parse(args[2]), args[4]);
@@ -285,7 +361,7 @@ namespace WFPcmd
                 case "remove":
                     if (args.Length != 3)
                     {
-                        Console.WriteLine(USAGE);
+                        Console.WriteLine(USAGE_FILTER);
                         return;
                     }
                     switch (args[1])
@@ -297,7 +373,7 @@ namespace WFPcmd
                             FilterCtrl.RemoveFilterByKey(engineHandle, Guid.Parse(args[2]));
                             break;
                         default:
-                            Console.WriteLine(USAGE);
+                            Console.WriteLine(USAGE_FILTER);
                             break;
                     }
                     break;
@@ -305,7 +381,7 @@ namespace WFPcmd
                     ProcessFilterAddArgs(args, engineHandle);
                     break;
                 default:
-                    Console.WriteLine(USAGE);
+                    Console.WriteLine(USAGE_FILTER);
                     break;
             }
         }
@@ -341,13 +417,13 @@ namespace WFPcmd
                         conditions.Add((args[++i], args[++i], args[++i]));
                         break;
                     default:
-                        Console.WriteLine(USAGE);
+                        Console.WriteLine(USAGE_FILTER);
                         return;
                 }
             }
             if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(layer) || string.IsNullOrEmpty(action))
             {
-                Console.WriteLine(USAGE);
+                Console.WriteLine(USAGE_FILTER);
                 return;
             }
             FilterCtrl.AddFilter(engineHandle, name, description, layer, action, conditions, weight);

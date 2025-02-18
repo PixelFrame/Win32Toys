@@ -110,6 +110,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CalloutCtrl.cs" />
     <Compile Include="FilterCtrl.cs" />
     <Compile Include="Helper.cs" />
     <Compile Include="LayerCtrl.cs" />

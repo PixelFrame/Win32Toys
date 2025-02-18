@@ -72,6 +72,7 @@ namespace WFPcmd
                     Console.WriteLine(new string('-', Console.BufferWidth - 1));
                 }
             }
+            PInvoke.FwpmFreeMemory0((void**)&layers);
         }
 
         public static unsafe void PrintLayers(HANDLE engineHandle, bool verbose = false)
@@ -90,6 +91,7 @@ namespace WFPcmd
                     Console.WriteLine($"{layers[i]->layerId,-3} {Helper.TranslateLayerGuid(layers[i]->layerKey),-50} {layers[i]->displayData.name}");
                 }
             }
+            PInvoke.FwpmFreeMemory0((void**)&layers);
         }
 
         public unsafe static void PrintLayerVerbose(FWPM_LAYER0* layer)

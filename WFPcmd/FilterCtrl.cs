@@ -73,7 +73,7 @@ namespace WFPcmd
                     }
                     else
                     {
-                        Console.WriteLine($"{filters[i]->filterId,-6} {filters[i]->filterKey} {filters[i]->action.type,-30} {filters[i]->displayData.name} ");
+                        Console.WriteLine($"{filters[i]->filterId,-8} {filters[i]->filterKey}   {filters[i]->action.type.ToString().Substring(11),-20} {filters[i]->displayData.name} ");
                     }
                 }
             }
@@ -115,6 +115,15 @@ namespace WFPcmd
                     Console.WriteLine($"  Name:           {pProvider->displayData.name}");
                     Console.WriteLine($"  Description:    {pProvider->displayData.description}");
                     Console.WriteLine($"  Service Name:   {pProvider->serviceName}");
+                }
+            }
+            Console.WriteLine($"Flags:            0x{filter->flags:X}");
+            foreach (var flag in Enum.GetValues(typeof(FWPM_FILTER_FLAGS_1)))
+            {
+                if ((uint)flag == 0) continue; // skip none
+                if (((uint)filter->flags & (uint)flag) == (uint)flag)
+                {
+                    Console.WriteLine($"  {Enum.GetName(typeof(FWPM_FILTER_FLAGS_1), flag)}");
                 }
             }
             if (filter->numFilterConditions > 0)
@@ -203,6 +212,7 @@ namespace WFPcmd
                 throw new Win32Exception((int)dwRet, "FwpmFilterGetByKey0");
             }
             PrintFilterVerbose(filter, engineHandle);
+            PInvoke.FwpmFreeMemory0((void**)&filter);
         }
 
         public static unsafe void QueryFilterByName(HANDLE engineHandle, string name, bool useRegex)
@@ -283,10 +293,16 @@ namespace WFPcmd
             PInvoke.GetSecurityDescriptorOwner(pSd, out var pOwner, out var ownerDefaulted);
             PInvoke.GetSecurityDescriptorGroup(pSd, out var pGroup, out var groupDefaulted);
 
+            OBJECT_SECURITY_INFORMATION secInfo = 0;
+            if (daclPresent) secInfo |= OBJECT_SECURITY_INFORMATION.DACL_SECURITY_INFORMATION;
+            if (saclPresent) secInfo |= OBJECT_SECURITY_INFORMATION.SACL_SECURITY_INFORMATION;
+            if (pOwner != null) secInfo |= OBJECT_SECURITY_INFORMATION.OWNER_SECURITY_INFORMATION;
+            if (pGroup != null) secInfo |= OBJECT_SECURITY_INFORMATION.GROUP_SECURITY_INFORMATION;
+
             dwRet = PInvoke.FwpmFilterSetSecurityInfoByKey0(engineHandle, &key,
-                (uint)(OBJECT_SECURITY_INFORMATION.DACL_SECURITY_INFORMATION | OBJECT_SECURITY_INFORMATION.SACL_SECURITY_INFORMATION),
-                null,
-                null,
+                (uint)secInfo,
+                (SID*)pOwner.Value,
+                (SID*)pGroup.Value,
                 pDacl,
                 pSacl
                 );
@@ -398,5 +414,27 @@ namespace WFPcmd
                 conditionValue = Helper.ParseConditionValue(value)
             };
         }
+    }
+
+    // More bits defined in SDK 10.0.26100.0
+    [Flags]
+    public enum FWPM_FILTER_FLAGS_1 : uint
+    {
+        FWPM_FILTER_FLAG_NONE                                = 0x00000000,
+        FWPM_FILTER_FLAG_PERSISTENT                          = 0x00000001,
+        FWPM_FILTER_FLAG_BOOTTIME                            = 0x00000002,
+        FWPM_FILTER_FLAG_HAS_PROVIDER_CONTEXT                = 0x00000004,
+        FWPM_FILTER_FLAG_CLEAR_ACTION_RIGHT                  = 0x00000008,
+        FWPM_FILTER_FLAG_PERMIT_IF_CALLOUT_UNREGISTERED      = 0x00000010,
+        FWPM_FILTER_FLAG_DISABLED                            = 0x00000020,
+        FWPM_FILTER_FLAG_INDEXED                             = 0x00000040,
+        FWPM_FILTER_FLAG_HAS_SECURITY_REALM_PROVIDER_CONTEXT = 0x00000080,
+        FWPM_FILTER_FLAG_SYSTEMOS_ONLY                       = 0x00000100,
+        FWPM_FILTER_FLAG_GAMEOS_ONLY                         = 0x00000200,
+        FWPM_FILTER_FLAG_SILENT_MODE                         = 0x00000400,
+        FWPM_FILTER_FLAG_IPSEC_NO_ACQUIRE_INITIATE           = 0x00000800,
+        FWPM_FILTER_FLAG_RESERVED0                           = 0x00001000,
+        FWPM_FILTER_FLAG_RESERVED1                           = 0x00002000,
+        FWPM_FILTER_FLAG_RESERVED2                           = 0x00004000,
     }
 }

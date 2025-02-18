@@ -146,6 +146,11 @@ namespace WFPcmd
             return CalloutGuidTable.Contains(guid) ? CalloutGuidTable[guid] : guid.ToString();
         }
 
+        public static Guid GetCalloutGuid(string name)
+        {
+            return CalloutGuidTable.Contains(name) ? CalloutGuidTable[name] : Guid.Parse(name);
+        }
+
         public unsafe static string TranslateValue(FWP_VALUE0 value, bool withType = false)
         {
             var res = TranslateValue(*(FWP_CONDITION_VALUE0*)&value, withType);
