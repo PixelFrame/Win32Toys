@@ -150,7 +150,7 @@ namespace WFPcmd
                             Helper.PrintTable(0);
                             break;
                         default:
-                            Console.WriteLine(USAGE);
+                            Console.WriteLine(USAGE_GUID);
                             break;
                     }
                     break;
