@@ -12,5 +12,6 @@ fastdel             Delete files with FILE_FLAG_DELETE_ON_CLOSE
 ddev                Manipulate DOS Device
 NlmCallback         NLM events
 NetCfgUtil          Simple INetCfg API usage
-WFPFilterCtrl       Control WFP filters
+WFPcmd              Control WFP
+PacketMonster       Demo of PktMon API, only works on insider build as of now (2025.04)
 ```
