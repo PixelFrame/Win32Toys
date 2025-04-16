@@ -87,7 +87,25 @@ void AddAllNetworkInterfaces(PACKETMONITOR_DATA_SOURCE_LIST* pDataSourceList)
 
 void StreamEventCallback(VOID* context, PACKETMONITOR_STREAM_EVENT_INFO const* StreamEventInfo, PACKETMONITOR_STREAM_EVENT_KIND eventKind)
 {
-    wcout << L"STREAM EVENT CALLBACK" << endl;
+    wcout << L"STREAM EVENT CALLBACK: ";
+    switch (eventKind)
+    {
+    case PacketMonitorStreamEventStarted:
+        wcout << L"STARTED" << endl;
+        break;
+    case PacketMonitorStreamEventStopped:
+        wcout << L"STOPPED" << endl;
+        break;
+    case PacketMonitorStreamEventFatalError:
+        wcout << L"ERROR" << endl;
+        break;
+    case PacketMonitorStreamEventProcessInfo:
+        wcout << L"PROCESS INFO" << endl;
+        break;
+    default:
+        wcout << L"UNKNOWN" << endl;
+        break;
+    }
 }
 
 void StreamDataCallback(VOID* context, PACKETMONITOR_STREAM_DATA_DESCRIPTOR const* data)
@@ -194,7 +212,7 @@ int wmain()
         return -1;
     }
 
-    wcout << L"Starting session..." << endl;
+    wcout << L"Starting session... Press CTRL+X to end." << endl;
     hr = pfn_PacketMonitorSetSessionActive(hSession, TRUE);
     if (FAILED(hr))
     {
@@ -206,10 +224,19 @@ int wmain()
         return -1;
     }
 
-    Sleep(5000);
+    while (true)
+    {
+        // exit when receiving CTRL+X
+        if (GetAsyncKeyState(VK_CONTROL) && GetAsyncKeyState('X'))
+        {
+            break;
+        }
+        Sleep(100);
+    }
 
-    wcout << L"Ending session..." << endl;
-    pfn_PacketMonitorSetSessionActive(hSession, FALSE);
+    hr = pfn_PacketMonitorSetSessionActive(hSession, FALSE);
+    Sleep(100); // Wait for output completion
+    wcout << L"Session Ended" << endl;
     if (FAILED(hr))
     {
         wcout << L"Failed to end session: " << hr << endl;
