@@ -13,5 +13,5 @@ ddev                Manipulate DOS Device
 NlmCallback         NLM events
 NetCfgUtil          Simple INetCfg API usage
 WFPcmd              Control WFP
-PacketMonster       Demo of PktMon API, only works on insider build as of now (2025.04)
+PacketMonster       Demo of PktMon API, needs 2025.4D update
 ```
